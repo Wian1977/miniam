@@ -4,7 +4,7 @@
 终端里显示频谱、封面与走马灯标题。声音由浏览器解码后送进系统混音器。
 
 ```
-miniam (Rust + ratatui，全屏 TUI，15MB 单文件)
+miniam (Rust + ratatui，全屏 TUI，16MB 单文件)
    └─ WebDriver BiDi（Firefox）或 CDP（Chrome）──> 隐藏浏览器（music.apple.com，已登录）
                            └─ Widevine 解密 → AAC → PipeWire/PulseAudio → 系统输出
 ```
@@ -13,7 +13,7 @@ miniam (Rust + ratatui，全屏 TUI，15MB 单文件)
 
 提供频谱、封面、标题显示，以及播放/暂停、切歌、频谱样式、页面诊断等按键控制。
 
-音频由隐藏浏览器解密后送进系统混音器，**浏览器进程树那 300–400MB 一分没少**（见「硬下限」）。
+音频由隐藏浏览器解密后送进系统混音器；浏览器进程树是架构刚需，已通过氛围视频抑制与 user.js 尽量压低（见「硬下限」）。
 
 ## 快速开始
 
@@ -65,12 +65,12 @@ miniam [ui|up|reset|cover]
 | `MINIAM_FISSION` | 设为 `1` 恢复 Firefox 站点隔离（默认关闭，省内存） |
 | `MINIAM_HEVC` | 设为 `1` 恢复 Firefox 的 HEVC 解码器（默认关闭，省内存） |
 | `MINIAM_CELL_ASPECT` | 终端单元格宽高比（默认 2.20，用于封面比例） |
-| `MINIAM_HALFBLOCK` | 设为 `1` 启用 ▀/▌ 半块字符渲染封面（更清晰，见下） |
+| `MINIAM_HALFBLOCK` | 设为 `1` 启用 ▀/▌ 半块字符渲染封面（默认关：Ambiguous 宽度字符在部分 CJK 终端里会撕裂界面） |
 | `MINIAM_FONT_HEX` | 换点阵字库（默认 `assets/font_iosevka.hex`；旧 16×16 粗体在 `assets/unifont_bold.hex`） |
 
 ## 音频链路
 
-频谱要的是**被控的那一路**音频，而不是系统里所有声音。所以：
+频谱只取被控的那一路音频。所以：
 
 ```
 浏览器播放流 --move-sink-input(按 pid 精确匹配)--> miniam_capture   ← 频谱源
@@ -92,7 +92,7 @@ miniam [ui|up|reset|cover]
 
 Apple Music 网页版会在背景里循环播放**氛围视频**（ambient video，14 个左右，单个最大
 2048×2732，源在 `mvod.itunes.apple.com`）。这些视频与音乐无关（muted、`aria-hidden`），
-但 Linux 上 Firefox **只能软解 HEVC**，实测会把整个浏览器抬到约 **170% 单核** —— 在 4 核机器上
+但 Linux 上 Firefox **只能软解 HEVC**，实测会把整个浏览器抬到约 **217% 单核** —— 在 4 核机器上
 就是整机一半的 CPU，而且解码供不上会让音频断流、曲目提前结束。
 
 所以 miniam 会在页面里装一个抑制器（定时器 + MutationObserver，持续压住新出现的氛围视频），
@@ -174,14 +174,14 @@ miniam 只用 music.apple.com 一个站，Firefox 的**站点隔离**（fission�
 | 放视频时频谱跟着动 | 有别的流（你自己的 firefox / 播放器）被留在频谱源里了。查 `pactl list sink-inputs` 对比 `application.process.id` 与 `/proc/<pid>/cmdline`（我们的浏览器带 `--profile ~/.config/miniam/`） |
 | 完全没声音 | ① 默认 sink 被残留污染（跑 `miniam reset`）；② 无声卡服务器需修 `/dev/snd` 的 ACL 或加入 `audio` 组；③ 真实输出 sink 不存在 |
 | 登录窗口不弹 | 浏览器没真起来（profile 被上次残留占用）；或会话没有图形显示（需要 DISPLAY/WAYLAND_DISPLAY，或 `ssh -X`） |
-| 按 q/Esc 桌面被注销 | 已在 2026-11-12 修复（旧版用 `kill -{pid}` 组杀，会误伤图形会话组长） |
-| 起播是旧歌单、跳完就没歌了 | 已在 2026-11-11 修复（起播先回主页播个人电台 = 无限流） |
 
 ## 硬下限（再强调一次）
 
-Apple Music 网页版的 DRM（Widevine）决定了：**必须有真浏览器、且必须能解密**，
-300–400MB 的浏览器进程树省不掉。能省的只是控制面那十几 MB，和浏览器本身的启动参数与
-内存占用（Firefox 侧靠 `dom.ipc.processCount=1`、关磁盘缓存等 user.js 项压）。
+Apple Music 网页版的 DRM（Widevine）决定了：**必须有真浏览器、且必须能解密**。
+浏览器的内存占用是架构刚需，省不掉整个进程树；能省的是控制面那十几 MB，
+以及浏览器本身的启动参数与内存占用 —— 氛围视频抑制器压住 CPU，
+user.js 里的 `dom.ipc.processCount=1`、关站点隔离、关 HEVC 解码器把进程数
+12→9、RSS ~2890M→1800M（见「浏览器省内存」）。
 
 换轻浏览器（WebKitGTK / Servo）或自托管一个简化页面都会破坏 Widevine 与 origin 绑定，
 这条路上已经验证过走不通。
