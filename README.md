@@ -4,7 +4,7 @@ One command to play Apple Music in your terminal. Keep it open while coding, rea
 
 一行命令，在终端里听 Apple Music。适合写代码、看日志、跑构建的时候开着。不用另开浏览器窗口，也不用为切歌去点网页。
 
-![miniam running](https://github.com/Wian1977/miniam/releases/download/v0.1.0/demo.gif)
+![miniam cover](https://github.com/Wian1977/miniam/releases/download/v0.1.0/cover.png)
 
 ## Features
 ### 功能特点

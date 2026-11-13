@@ -5,6 +5,7 @@
 # 本地交接文档与个人文件（不入库）
 HANDOFF.md
 *.png
+!assets/cover.png
 *.jpeg
 *.jpg
 36
