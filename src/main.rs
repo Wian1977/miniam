@@ -1467,8 +1467,9 @@ fn cell_aspect() -> f32 {
 }
 
 const SPEC_NEON: (u8, u8, u8) = (0, 255, 200);
-const SPRITE_COL_BYTES: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/02e3c38e84f7b33477ca1224d95977393372f7761b9fa6-iPmcoT_fw658.webp"));
-const SPRITE_DOT_BYTES: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/1d22e8b194717ec9a7ccb21f5bc1b9f2c1523a292d1120-lodlxk_fw658.webp"));
+// 发光贴图已从仓库移除；留空数组让 load_sprite 返回 None，频谱回退到纯色柱。
+const SPRITE_COL_BYTES: &[u8] = &[];
+const SPRITE_DOT_BYTES: &[u8] = &[];
 
 struct Sprite {
     inten: Vec<u8>,
@@ -3599,7 +3600,7 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
     let (cover_tx, mut cover_rx) = mpsc::unbounded_channel::<Vec<ratatui::text::Line>>();
     let mut cover_lines: Vec<ratatui::text::Line> = Vec::new();
     let mut last_artwork: Option<String> = None;
-    // particle spectrum: two glow sprites embedded at compile time; missing => plain bars.
+    // 贴图已移除，load_sprite(&[]) 返回 None，频谱走纯色柱。
     let col_sprite = load_sprite(SPRITE_COL_BYTES);
     let dot_sprite = load_sprite(SPRITE_DOT_BYTES);
     let mut particles: Vec<Particle> = Vec::new();
@@ -4649,9 +4650,3 @@ mod quadrant_tests {
 }
 mod bitmap_font;
 mod braille_text;
-#[cfg(test)]
-mod bt_probe;
-#[cfg(test)]
-mod note_probe;
-#[cfg(test)]
-mod icon_probe;

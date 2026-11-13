@@ -15,4 +15,3 @@ realfft = "3"
 image = { version = "0.25", features = ["webp"] }
 base64 = "0.22"
 rand = "0.8"
-swash = "0.2.10"
