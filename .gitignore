@@ -1,0 +1,14 @@
+# 构建产物
+/target/
+**/*.rs.bk
+
+# 本地交接文档与个人文件（不入库）
+HANDOFF.md
+*.png
+*.jpeg
+*.jpg
+36
+
+# 编辑器 / 系统
+*.swp
+.DS_Store

@@ -1,0 +1,18 @@
+[package]
+name = "miniam"
+version = "0.1.0"
+edition = "2021"
+description = "最小可用的 Linux Apple Music 遥控器：Rust + CDP + 官方网页播放器"
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+futures-util = "0.3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "net", "sync", "signal"] }
+tokio-tungstenite = "0.24"
+ratatui = "0.29"
+realfft = "3"
+image = { version = "0.25", features = ["webp"] }
+base64 = "0.22"
+rand = "0.8"
+swash = "0.2.10"
