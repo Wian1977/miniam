@@ -81,6 +81,13 @@ The browser stream is moved into a virtual sink (`miniam_capture`) and looped ba
 
 程序创建虚拟音频接收器，用 PulseAudio/PipeWire 把浏览器音频搬进去，再回环到真实输出设备；系统默认输出保持原样。
 
+### Local audio use
+### 本地音频用途
+
+The spectrum reads audio samples from a local virtual sink in real time, only to drive the on-screen visualization. Audio is never saved to disk, forwarded, or uploaded; playback runs in your own browser under your own account.
+
+频谱实时读取本地虚拟音频设备的采样，只用于屏幕上的可视化显示。音频不落盘、不转发、不上传；播放始终在你自己账号下的浏览器里进行。
+
 ## Spectrum styles
 ### 频谱样式
 
