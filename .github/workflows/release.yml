@@ -1,0 +1,48 @@
+name: Build release artifacts
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag to build (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: v
+        run: |
+          VER="${{ github.event.inputs.version }}"
+          [ -z "$VER" ] && VER="${{ github.ref_name }}"
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package tarball
+        run: |
+          NAME="miniam-${{ steps.v.outputs.ver }}-linux-x86_64"
+          mkdir -p "$NAME"
+          cp target/release/miniam README.md "$NAME/"
+          tar -czf "$NAME.tar.gz" "$NAME"
+          echo "ASSET=$NAME.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER="${{ steps.v.outputs.ver }}"
+          gh release view "$VER" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create "$VER" --repo "${{ github.repository }}" \
+              --title "$VER" --notes "Automated build"
+          gh release upload "$VER" "$ASSET" --clobber --repo "${{ github.repository }}"
