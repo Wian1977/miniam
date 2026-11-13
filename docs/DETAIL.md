@@ -6,14 +6,14 @@
 ```
 miniam (Rust + ratatui，全屏 TUI，16MB 单文件)
    └─ WebDriver BiDi（Firefox）或 CDP（Chrome）──> 隐藏浏览器（music.apple.com，已登录）
-                           └─ Widevine 解密 → AAC → PipeWire/PulseAudio → 系统输出
+                           └─ 音频 → PipeWire/PulseAudio → 系统输出
 ```
 
 ## 范围
 
 提供频谱、封面、标题显示，以及播放/暂停、切歌、频谱样式、页面诊断等按键控制。
 
-音频由隐藏浏览器解密后送进系统混音器；浏览器进程树是架构刚需，已通过氛围视频抑制与 user.js 尽量压低（见「硬下限」）。
+音频由浏览器解码后送进系统混音器；浏览器进程树是架构刚需，已通过氛围视频抑制与 user.js 尽量压低（见「硬下限」）。
 
 ## 快速开始
 
@@ -161,7 +161,7 @@ miniam 只用 music.apple.com 一个站，Firefox 的**站点隔离**（fission�
 | 类别 | 需要什么 |
 |---|---|
 | 音频 | `pactl`、`parec`（**PulseAudio 兼容**工具；PipeWire 由 `pipewire-pulse` 提供） |
-| 浏览器 | Firefox 或 Chrome，**且带 Widevine CDM**（Apple Music 网页版 DRM 的硬要求） |
+| 浏览器 | Firefox 或 Chrome（官方构建），加载官方网页播放器 |
 | 构建 | Rust 工具链（`cargo build --release`）；运行时只需要上面两项 |
 
 点阵字体：`assets/font_iosevka.hex`（ASCII 用 Iosevka 8×16，汉字用文泉驿）编译期内置。
@@ -177,11 +177,11 @@ miniam 只用 music.apple.com 一个站，Firefox 的**站点隔离**（fission�
 
 ## 硬下限（再强调一次）
 
-Apple Music 网页版的 DRM（Widevine）决定了：**必须有真浏览器、且必须能解密**。
+Apple Music 网页版的播放由浏览器内的 MusicKit 完成，所以必须使用真实的 Firefox 或 Chrome，并加载官方页面。
 浏览器的内存占用是架构刚需，省不掉整个进程树；能省的是控制面那十几 MB，
 以及浏览器本身的启动参数与内存占用 —— 氛围视频抑制器压住 CPU，
 user.js 里的 `dom.ipc.processCount=1`、关站点隔离、关 HEVC 解码器把进程数
 12→9、RSS ~2890M→1800M（见「浏览器省内存」）。
 
-换轻浏览器（WebKitGTK / Servo）或自托管一个简化页面都会破坏 Widevine 与 origin 绑定，
+换轻量浏览器或自托管一个简化页面都无法加载官方播放器，
 这条路上已经验证过走不通。

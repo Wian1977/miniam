@@ -3,6 +3,9 @@ name = "miniam"
 version = "0.1.0"
 edition = "2021"
 description = "最小可用的 Linux Apple Music 遥控器：Rust + CDP + 官方网页播放器"
+license = "MIT"
+repository = "https://github.com/Wian1977/miniam"
+homepage = "https://github.com/Wian1977/miniam"
 
 [dependencies]
 anyhow = "1"

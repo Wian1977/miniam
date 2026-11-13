@@ -25,7 +25,7 @@ Depends: pulseaudio-utils
 Maintainer: Wian1977
 Description: Apple Music in the terminal
  True-color cover art, track title and a live spectrum in one terminal window.
- Plays through a hidden Firefox/Chrome with Widevine.
+ Plays through a hidden Firefox/Chrome window.
 CTRL
 dpkg-deb --build "$STAGE" "$OUT" >/dev/null
 echo "$OUT"

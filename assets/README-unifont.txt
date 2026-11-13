@@ -1,3 +1,6 @@
+The miniam source code is MIT licensed; the bundled bitmap fonts below keep
+their own licenses (see each section).
+
 Bitmap font assets for the braille title
 =======================================
 

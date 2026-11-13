@@ -3,10 +3,10 @@
 //! 架构：
 //!   miniam (Rust，按需启动，几 MB，用完即退)
 //!      └─ CDP(Chrome) 或 WebDriver BiDi(Firefox) ──> 隐藏的浏览器（music.apple.com，已登录）
-//!                                └─ Widevine 解密 → 音频直接进系统混音器
+//!                                └─ 音频直接进系统混音器
 //!
 //! 这个程序**不播放**任何东西，只是把按键翻译成页面里的 window.MusicKit 调用。
-//! 所以它不能绕开 DRM，也省不掉浏览器那几百 MB。
+//! 所以需要真实浏览器，也省不掉浏览器那几百 MB。
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::{SinkExt, StreamExt};

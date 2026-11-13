@@ -51,11 +51,11 @@ A browser window opens on first launch to sign in to Apple Music; sign in once a
 ### 系统要求
 
 - Linux + terminal (PipeWire or PulseAudio)
-- Firefox or Chrome with Widevine CDM
+- Firefox or Chrome (official build)
 - Rust toolchain (build only)
 
 - Linux + 终端 (PipeWire 或 PulseAudio)
-- Firefox 或 Chrome (需安装 Widevine CDM)
+- Firefox 或 Chrome（官方构建）
 - Rust 工具链 (仅构建需要)
 
 ### Environment variables
@@ -151,6 +151,6 @@ miniam 是独立的非官方项目，与 Apple Inc. 无关。Apple Music 为 App
 ## License
 ### 许可证
 
-Use the code freely. Licenses for the bundled bitmap fonts are in `assets/README-unifont.txt`.
+MIT. Bundled bitmap fonts keep their own licenses; see `assets/README-unifont.txt`.
 
-代码可自由取用。内置点阵字库的许可见 `assets/README-unifont.txt`。
+代码采用 MIT 许可。内置点阵字库各有独立许可，见 `assets/README-unifont.txt`。
