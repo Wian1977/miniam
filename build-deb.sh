@@ -6,7 +6,7 @@ VERSION=${1:-0.1.0}
 ARCH=$(dpkg --print-architecture 2>/dev/null || echo amd64)
 HERE=$(cd "$(dirname "$0")" && pwd)
 BIN=$HERE/target/release/$APP
-OUT=${MINIAM_DEB_OUT:-/home/u/${APP}_${VERSION}_${ARCH}.deb}
+OUT=${MINIAM_DEB_OUT:-./${APP}_${VERSION}_${ARCH}.deb}
 
 [ -x "$BIN" ] || (cd "$HERE" && cargo build --release)
 
