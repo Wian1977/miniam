@@ -1467,70 +1467,6 @@ fn cell_aspect() -> f32 {
 }
 
 const SPEC_NEON: (u8, u8, u8) = (0, 255, 200);
-// 发光贴图已从仓库移除；留空数组让 load_sprite 返回 None，频谱回退到纯色柱。
-const SPRITE_COL_BYTES: &[u8] = &[];
-const SPRITE_DOT_BYTES: &[u8] = &[];
-
-struct Sprite {
-    inten: Vec<u8>,
-    w: u32,
-    h: u32,
-}
-
-fn load_sprite(bytes: &[u8]) -> Option<Sprite> {
-    let img = image::load_from_memory(bytes).ok()?;
-    let rgba = img.to_rgba8();
-    let (w, h) = (rgba.width(), rgba.height());
-    let has_alpha = img.color().has_alpha();
-    let mut inten = vec![0u8; (w * h) as usize];
-    for (i, p) in rgba.pixels().enumerate() {
-        inten[i] = if has_alpha {
-            p[3]
-        } else {
-            ((p[0] as u32 + p[1] as u32 + p[2] as u32) / 3) as u8
-        };
-    }
-    Some(Sprite { inten, w, h })
-}
-
-fn blend_sprite(buf: &mut image::RgbaImage, sp: &Sprite, dx: i64, dy: i64, w: u32, h: u32, tint: (u8, u8, u8), alpha: f32) {
-    if w == 0 || h == 0 {
-        return;
-    }
-    let bw = buf.width() as i64;
-    let bh = buf.height() as i64;
-    let (tr, tg, tb) = tint;
-    for yy in 0..h as i64 {
-        let sy = ((yy as f32 / h as f32) * sp.h as f32) as u32;
-        if sy >= sp.h {
-            continue;
-        }
-        let py = dy + yy;
-        if py < 0 || py >= bh {
-            continue;
-        }
-        let row = (sy * sp.w) as usize;
-        for xx in 0..w as i64 {
-            let sx = ((xx as f32 / w as f32) * sp.w as f32) as u32;
-            if sx >= sp.w {
-                continue;
-            }
-            let sa = sp.inten[row + sx as usize] as f32 / 255.0 * alpha;
-            if sa <= 0.0 {
-                continue;
-            }
-            let px = dx + xx;
-            if px < 0 || px >= bw {
-                continue;
-            }
-            let d = buf.get_pixel_mut(px as u32, py as u32);
-            d[0] = (d[0] as f32 + tr as f32 * sa).min(255.0) as u8;
-            d[1] = (d[1] as f32 + tg as f32 * sa).min(255.0) as u8;
-            d[2] = (d[2] as f32 + tb as f32 * sa).min(255.0) as u8;
-            d[3] = 255;
-        }
-    }
-}
 
 /// Braille 栅格化：每字符格 2 像素宽 × 4 像素高 = 8 子像素/格，
 /// 比原来的半块(1×2) 密度高 4 倍，且子像素近乎正方，像素更细、细节更密。
@@ -1964,8 +1900,6 @@ fn render_spectrum(
     spectrum: &[u64],
     cols: u32,
     rows: u32,
-    col_sprite: Option<&Sprite>,
-    dot_sprite: Option<&Sprite>,
     particles: &mut Vec<Particle>,
     neon: (u8, u8, u8),
     peaks: &mut Vec<f32>,
@@ -2001,9 +1935,6 @@ fn render_spectrum(
         let bar_h = (((e * (bh as f32)).max(1.0)) as u32).min(bh);
         let dx = (cx - bin_w as f32 / 2.0) as i64;
         let dy = (bh - bar_h) as i64;
-        if let Some(sp) = col_sprite {
-            blend_sprite(&mut buf, sp, dx, dy, bin_w.max(2), bar_h, c, 0.5 + 0.5 * e);
-        }
         let c_bright = brighten(c, 0.08); // 整体提亮，霓虹底色更醒目
         draw_core(&mut buf, dx, dy, bin_w.max(1) as i64, bar_h as i64, c_bright, 0.55 + 0.40 * e);
         // 柱顶亮芯：additive 叠加近白高光，形成霓虹发光边
@@ -2062,9 +1993,6 @@ fn render_spectrum(
         let flick = 1.0 - dyn_state.treble * 0.35 * (1.0 - lr); // 高频轻微闪烁
         let a = lr * flick;
         let (dx, dy) = ((p.x - size / 2.0) as i64, (p.y - size / 2.0) as i64);
-        if let Some(sp) = dot_sprite {
-            blend_sprite(&mut buf, sp, dx, dy, size as u32 + 1, size as u32 + 1, p.color, a * 0.6);
-        }
         // additive 亮芯：中心近白高光（更亮），外圈同色光晕
         draw_core(&mut buf, dx, dy, size as i64 + 1, size as i64 + 1, p.color, a * 0.5);
         draw_core(&mut buf, dx, dy, 1, 1, brighten(p.color, 0.4), a);
@@ -3165,14 +3093,12 @@ fn build_spectrum(
     spectrum_data: &[u64],
     cols: u32,
     rows: u32,
-    col_sprite: Option<&Sprite>,
-    dot_sprite: Option<&Sprite>,
     particles: &mut Vec<Particle>,
     peaks: &mut Vec<f32>,
     dynamic: &AudioDyn,
 ) -> Vec<ratatui::text::Line<'static>> {
     if spectrum_data.iter().any(|&v| v > 3) {
-        render_spectrum(spectrum_data, cols, rows, col_sprite, dot_sprite, particles, SPEC_NEON, peaks, dynamic)
+        render_spectrum(spectrum_data, cols, rows, particles, SPEC_NEON, peaks, dynamic)
     } else {
         Vec::new()
     }
@@ -3277,8 +3203,8 @@ fn draw_core_glow(buf: &mut image::RgbaImage, cx: f32, cy: f32, core_rx: f32, co
     draw_core(buf, x0, y0, w, h, (130, 235, 255), 0.9);
 }
 
-/// 一条带运动模糊的曲速光线粒子：沿速度反方向拉出细长拖尾，用 warp 贴图做纹理。
-fn draw_streak(buf: &mut image::RgbaImage, x: f32, y: f32, vx: f32, vy: f32, c: (u8, u8, u8), lr: f32, _dot: Option<&Sprite>, col: Option<&Sprite>) {
+/// 一条带运动模糊的曲速光线粒子：沿速度反方向拉出细长拖尾，用色块逐点绘制。
+fn draw_streak(buf: &mut image::RgbaImage, x: f32, y: f32, vx: f32, vy: f32, c: (u8, u8, u8), lr: f32) {
     let len = (18.0 + lr * 26.0).min(56.0);
     let sp = (vx * vx + vy * vy).sqrt().max(1.0);
     let ux = vx / sp;
@@ -3293,9 +3219,6 @@ fn draw_streak(buf: &mut image::RgbaImage, x: f32, y: f32, vx: f32, vy: f32, c: 
         let a = (0.45 + 0.55 * lr) * (1.0 - t).powf(0.65);
         if a < 0.12 { continue; }
         let cc = brighten(c, 0.12 + t * 0.22);
-        if let Some(sp_) = col {
-            blend_sprite(buf, sp_, px - 1, py - 1, 3, 3, cc, a * 0.7);
-        }
         draw_core(buf, px, py, 1, 1, cc, a);
     }
 }
@@ -3306,8 +3229,6 @@ fn render_radial_spectrum(
     spectrum: &[u64],
     cols: u32,
     rows: u32,
-    col_sprite: Option<&Sprite>,
-    dot_sprite: Option<&Sprite>,
     particles: &mut Vec<Particle>,
     dyn_state: &AudioDyn,
     phase: f32,
@@ -3461,7 +3382,7 @@ fn render_radial_spectrum(
         let pd = ((p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy)).sqrt() / radius.max(1.0);
         p.color = radial_color(pd.clamp(0.0, 1.0));
         let lr = (p.life / p.max_life).clamp(0.0, 1.0);
-        draw_streak(&mut buf, p.x, p.y, p.vx, p.vy, p.color, lr, dot_sprite, col_sprite);
+        draw_streak(&mut buf, p.x, p.y, p.vx, p.vy, p.color, lr);
         next.push(p);
     }
     *particles = next;
@@ -3600,9 +3521,6 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
     let (cover_tx, mut cover_rx) = mpsc::unbounded_channel::<Vec<ratatui::text::Line>>();
     let mut cover_lines: Vec<ratatui::text::Line> = Vec::new();
     let mut last_artwork: Option<String> = None;
-    // 贴图已移除，load_sprite(&[]) 返回 None，频谱走纯色柱。
-    let col_sprite = load_sprite(SPRITE_COL_BYTES);
-    let dot_sprite = load_sprite(SPRITE_DOT_BYTES);
     let mut particles: Vec<Particle> = Vec::new();
     let mut peaks: Vec<f32> = vec![0.0f32; 64];
     let mut audio_dyn = AudioDyn::default();
@@ -3846,9 +3764,9 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
             let spec_ih = spec_area.height as u32;
             let cover_to_draw = cover_lines.clone();
             let spectrum_lines = if spec_mode == 2 {
-                render_radial_spectrum(&spectrum_data, spec_iw, spec_ih, col_sprite.as_ref(), dot_sprite.as_ref(), &mut radial_particles, &audio_dyn, radial_phase, radial_beat_wave, do_burst, radial_fade)
+                render_radial_spectrum(&spectrum_data, spec_iw, spec_ih, &mut radial_particles, &audio_dyn, radial_phase, radial_beat_wave, do_burst, radial_fade)
             } else if spec_mode == 1 {
-                build_spectrum(&spectrum_data, spec_iw, spec_ih, col_sprite.as_ref(), dot_sprite.as_ref(), &mut particles, &mut peaks, &audio_dyn)
+                build_spectrum(&spectrum_data, spec_iw, spec_ih, &mut particles, &mut peaks, &audio_dyn)
             } else {
                 // 绿(经典)模式：底部频谱区由 draw_ui 用 Sparkline 直接画，这里传空
                 Vec::new()
@@ -4023,9 +3941,9 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
                             let spec_iw = spec_area.width as u32;
                             let spec_ih = spec_area.height as u32;
                             let spectrum_lines = if spec_mode == 2 {
-                                render_radial_spectrum(&spectrum_data, spec_iw, spec_ih, col_sprite.as_ref(), dot_sprite.as_ref(), &mut radial_particles, &audio_dyn, radial_phase, radial_beat_wave, do_burst, radial_fade)
+                                render_radial_spectrum(&spectrum_data, spec_iw, spec_ih, &mut radial_particles, &audio_dyn, radial_phase, radial_beat_wave, do_burst, radial_fade)
                             } else {
-                                build_spectrum(&spectrum_data, spec_iw, spec_ih, col_sprite.as_ref(), dot_sprite.as_ref(), &mut particles, &mut peaks, &audio_dyn)
+                                build_spectrum(&spectrum_data, spec_iw, spec_ih, &mut particles, &mut peaks, &audio_dyn)
                             };
                             draw_ui(f, &status, busy, None, "", backend_name, &spectrum_data, &cover_lines, &spectrum_lines, spec_mode)
                         })?;
@@ -4596,8 +4514,8 @@ mod quadrant_tests {
         let mut pkl = vec![0f32; 64];
         let quiet = vec![0u64; 64];
         let loud = vec![85u64; 64];
-        let lq = render_spectrum(&quiet, 60, 10, None, None, &mut pq, SPEC_NEON, &mut pkq, &dq);
-        let ll = render_spectrum(&loud, 60, 10, None, None, &mut pl, SPEC_NEON, &mut pkl, &dl);
+        let lq = render_spectrum(&quiet, 60, 10, &mut pq, SPEC_NEON, &mut pkq, &dq);
+        let ll = render_spectrum(&loud, 60, 10, &mut pl, SPEC_NEON, &mut pkl, &dl);
         assert_eq!(lq.len(), 10, "频谱输出 10 行");
         assert_eq!(ll.len(), 10, "频谱输出 10 行");
         assert!(pl.len() > pq.len(), "激烈时发射更多粒子");
