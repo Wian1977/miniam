@@ -8,7 +8,7 @@ True-color album art, track title and spectrum, all without leaving the keyboard
 
 真彩封面、歌名、频谱一个不少，手不用离开键盘。
 
-![miniam running / miniam 运行时的窗口](assets/demo.gif)
+![miniam running / miniam 运行时的窗口](https://cdn.jsdelivr.net/gh/Wian1977/miniam@master/assets/demo.gif)
 
 Keep it open while coding, reading logs or waiting for a build; no browser window to open, no webpage to click for the next track.
 
