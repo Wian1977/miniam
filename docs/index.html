@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>miniam — Apple Music in your terminal</title>
+<meta name="description" content="miniam plays Apple Music in a terminal window with true-color album art, a live spectrum and keyboard controls.">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 20px 72px;
+    background: #000; color: #e6e6e6;
+    font: 16px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Noto Sans CJK SC", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  a { color: #f2f2f2; text-underline-offset: 3px; }
+  a:hover { color: #fff; }
+  h1 { font-size: 2.4rem; letter-spacing: .04em; margin: 56px 0 8px; }
+  h2 { font-size: 1.35rem; margin: 48px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #2a2a2a; }
+  p.tagline { color: #b8b8b8; margin: 0 0 6px; }
+  p.zh { color: #9a9a9a; }
+  .lang-note { color: #6f6f6f; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; margin-top: 40px; }
+  .cover { display: block; width: 100%; max-width: 860px; height: auto; margin: 32px auto 8px; border: 1px solid #222; }
+  .caption { text-align: center; color: #777; font-size: .85rem; margin: 0 0 8px; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  li.zh { color: #9a9a9a; list-style: none; margin-left: -22px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #242424; vertical-align: top; }
+  th { color: #b8b8b8; font-weight: 600; }
+  code { background: #141414; border: 1px solid #262626; padding: 2px 6px; border-radius: 3px; font-size: .9em; }
+  .downloads a { display: inline-block; margin: 4px 12px 4px 0; padding: 8px 14px; border: 1px solid #3a3a3a; border-radius: 4px; text-decoration: none; }
+  .downloads a:hover { border-color: #888; }
+  .links a { margin-right: 18px; }
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid #242424; color: #777; font-size: .88rem; }
+  .sep { color: #444; margin: 0 6px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>miniam</h1>
+<p class="tagline">Apple Music in your terminal: true-color album art, a live spectrum, and keyboard controls in one window.</p>
+<p class="tagline zh">在终端里听 Apple Music：真彩封面、动态频谱和键盘控制，都在同一个窗口。</p>
+
+<img class="cover" src="https://github.com/Wian1977/miniam/releases/download/v0.1.0/cover.png" alt="miniam running in a terminal">
+<p class="caption">miniam in a terminal — cover art, track info and spectrum / 终端里的 miniam：封面、歌曲信息与频谱</p>
+
+<h2>What it does / 功能</h2>
+<ul>
+  <li>Start playback with one command and keep your hands on the keyboard.</li>
+  <li>True-color album art rendered with Unicode quadrant blocks.</li>
+  <li>Live spectrum with several styles that follow the music.</li>
+  <li>Space to pause, <code>n</code> for next, <code>b</code> for previous, <code>c</code> to change the spectrum, <code>d</code> for page diagnostics.</li>
+  <li>Audio still comes from your usual speakers or headphones; the system default output stays as it is.</li>
+  <li>The spectrum reads only its own audio stream, so sound from other apps does not move it.</li>
+  <li>A hidden Firefox or Chrome window plays the official web player in the background.</li>
+</ul>
+<ul class="zh">
+  <li>一行命令开始播放，手不用离开键盘。</li>
+  <li>用 Unicode 象限字符渲染 24-bit 真彩专辑封面。</li>
+  <li>多种频谱样式，跟随音乐起伏。</li>
+  <li>空格暂停，<code>n</code> 下一首，<code>b</code> 上一首，<code>c</code> 切换频谱，<code>d</code> 查看页面诊断。</li>
+  <li>声音仍从你原来的音箱或耳机出来，系统默认输出保持原样。</li>
+  <li>频谱只读取自己这一路音频，别的程序出声不会让它乱跳。</li>
+  <li>后台用隐藏的 Firefox 或 Chrome 窗口播放官方网页播放器。</li>
+</ul>
+
+<h2>Keyboard / 键盘控制</h2>
+<table>
+  <tr><th>Key</th><th>Action</th><th>作用</th></tr>
+  <tr><td><code>Space</code></td><td>Play / pause</td><td>播放 / 暂停</td></tr>
+  <tr><td><code>n</code></td><td>Next track</td><td>下一首</td></tr>
+  <tr><td><code>b</code></td><td>Previous track</td><td>上一首</td></tr>
+  <tr><td><code>c</code></td><td>Cycle spectrum style</td><td>切换频谱样式</td></tr>
+  <tr><td><code>d</code></td><td>Page diagnostics</td><td>页面诊断</td></tr>
+</table>
+
+<h2>Install / 安装</h2>
+<p>Linux x86_64, prebuilt. No Rust toolchain needed.<br><span class="zh">Linux x86_64 预编译包，不需要 Rust 工具链。</span></p>
+<div class="downloads">
+  <a href="https://github.com/Wian1977/miniam/releases/download/v0.1.0/miniam-v0.1.0-linux-x86_64.tar.gz">tar.gz</a>
+  <a href="https://github.com/Wian1977/miniam/releases/download/v0.1.0/miniam_0.1.0_amd64.deb">.deb</a>
+  <a href="https://github.com/Wian1977/miniam/releases">All releases / 全部版本</a>
+  <a href="https://gitee.com/wian77/miniam/releases">Gitee 镜像下载</a>
+</div>
+<p>Homebrew: <code>brew install Wian1977/miniam/miniam</code><br>Nix (NUR): <code>nix-env -f '&lt;nixpkgs&gt;' -iA nur.repos.Wian1977.miniam</code></p>
+<p>From source: <code>cargo build --release &amp;&amp; ./target/release/miniam</code><br><span class="zh">源码构建：<code>cargo build --release</code> 后运行 <code>./target/release/miniam</code>。</span></p>
+
+<h2>Requirements / 运行要求</h2>
+<ul>
+  <li>Linux with PipeWire or PulseAudio, plus <code>pactl</code> / <code>parec</code>.</li>
+  <li>Official Firefox or Chrome. The first launch opens a browser window so you can sign in to Apple Music once.</li>
+  <li>A terminal with 24-bit color and Unicode support.</li>
+</ul>
+<ul class="zh">
+  <li>Linux，需要 PipeWire 或 PulseAudio，以及 <code>pactl</code> / <code>parec</code>。</li>
+  <li>官方 Firefox 或 Chrome。首次启动会弹出浏览器窗口，登录一次 Apple Music 即可。</li>
+  <li>支持 24-bit 真彩与 Unicode 的终端。</li>
+</ul>
+
+<h2>Links / 链接</h2>
+<p class="links">
+  <a href="https://github.com/Wian1977/miniam">GitHub</a>
+  <a href="https://github.com/Wian1977/miniam/blob/master/README.md">README</a>
+  <a href="https://github.com/Wian1977/miniam/blob/master/docs/DETAIL.md">Technical details / 技术细节</a>
+  <a href="https://gitee.com/wian77/miniam">Gitee</a>
+</p>
+
+<p class="lang-note">English above / 中文在下</p>
+
+<footer>
+  <p>miniam is an independent, unofficial project and is not affiliated with Apple Inc. Apple Music is a trademark of Apple Inc. Playback runs through the official web player in a standard browser using your own subscription.</p>
+  <p>miniam 是独立的非官方项目，与 Apple Inc. 无关。Apple Music 为 Apple Inc. 的商标。播放通过标准浏览器中的官方网页播放器、使用你自己的订阅账号进行。</p>
+  <p>MIT license. Bundled bitmap fonts keep their own licenses. / MIT 许可；内置点阵字库各有独立许可。<span class="sep">·</span><a href="https://github.com/Wian1977/miniam/blob/master/assets/README-unifont.txt">Font licenses / 字体许可</a></p>
+</footer>
+
+</main>
+</body>
+</html>
