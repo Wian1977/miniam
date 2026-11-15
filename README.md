@@ -5,7 +5,7 @@
 </p>
 
 [![Build & Release](https://github.com/Wian1977/miniam/actions/workflows/release.yml/badge.svg)](https://github.com/Wian1977/miniam/actions/workflows/release.yml)
-`v0.1.1` · `MIT` · `Linux x86_64` · [下载 / Downloads](https://github.com/Wian1977/miniam/releases/tag/v0.1.1) · [Gitee 镜像](https://gitee.com/wian77/miniam)
+`v0.1.1` · `MIT` · `Linux x86_64` · [下载 / Downloads](https://github.com/Wian1977/miniam/releases/tag/v0.1.1) · [crates.io](https://crates.io/crates/miniam) · [Gitee 镜像](https://gitee.com/wian77/miniam)
 
 One command to play Apple Music in your terminal. Keep it open while coding, reading logs or waiting for a build; no browser window to open, no webpage to click for the next track.
 
@@ -32,13 +32,17 @@ One command to play Apple Music in your terminal. Keep it open while coding, rea
 ### 快速开始
 
 ```bash
-cargo build --release
-./target/release/miniam
+cargo install miniam
+miniam
 ```
 
 A browser window opens on first launch to sign in to Apple Music; sign in once and it stays valid.
 
 首次启动会弹出浏览器窗口让你登录 Apple Music，登录完成后按回车继续。之后可直接进入界面。
+
+Prebuilt binaries and a Debian package live on the [releases page](https://github.com/Wian1977/miniam/releases/tag/v0.1.1).
+
+预编译二进制与 Debian 安装包见[发布页](https://github.com/Wian1977/miniam/releases/tag/v0.1.1)。
 
 ## Keyboard
 ### 键盘控制
