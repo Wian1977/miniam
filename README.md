@@ -1,17 +1,17 @@
 # miniam
 
 <p align="center">
-  <img src="https://github.com/Wian1977/miniam/releases/download/v0.1.0/icon.png" width="96" alt="miniam icon">
+  <img src="https://github.com/Wian1977/miniam/releases/download/v0.1.1/icon.png" width="96" alt="miniam icon">
 </p>
 
 [![Build & Release](https://github.com/Wian1977/miniam/actions/workflows/release.yml/badge.svg)](https://github.com/Wian1977/miniam/actions/workflows/release.yml)
-`v0.1.0` · `MIT` · `Linux x86_64` · [下载 / Downloads](https://github.com/Wian1977/miniam/releases/tag/v0.1.0) · [Gitee 镜像](https://gitee.com/wian77/miniam)
+`v0.1.1` · `MIT` · `Linux x86_64` · [下载 / Downloads](https://github.com/Wian1977/miniam/releases/tag/v0.1.1) · [Gitee 镜像](https://gitee.com/wian77/miniam)
 
 One command to play Apple Music in your terminal. Keep it open while coding, reading logs or waiting for a build; no browser window to open, no webpage to click for the next track.
 
 一行命令，在终端里听 Apple Music。适合写代码、看日志、跑构建的时候开着。不用另开浏览器窗口，也不用为切歌去点网页。
 
-![miniam cover](https://github.com/Wian1977/miniam/releases/download/v0.1.0/cover.png)
+![miniam cover](https://github.com/Wian1977/miniam/releases/download/v0.1.1/cover.png)
 
 ## Features
 ### 功能特点
