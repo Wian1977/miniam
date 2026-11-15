@@ -6,6 +6,7 @@
 HANDOFF.md
 *.png
 !assets/cover.png
+!assets/icon.png
 *.jpeg
 *.jpg
 36

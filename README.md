@@ -1,5 +1,9 @@
 # miniam
 
+<p align="center">
+  <img src="https://github.com/Wian1977/miniam/releases/download/v0.1.0/icon.png" width="96" alt="miniam icon">
+</p>
+
 [![Build & Release](https://github.com/Wian1977/miniam/actions/workflows/release.yml/badge.svg)](https://github.com/Wian1977/miniam/actions/workflows/release.yml)
 `v0.1.0` · `MIT` · `Linux x86_64` · [下载 / Downloads](https://github.com/Wian1977/miniam/releases/tag/v0.1.0) · [Gitee 镜像](https://gitee.com/wian77/miniam)
 
