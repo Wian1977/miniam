@@ -2,10 +2,24 @@
 name = "miniam"
 version = "0.1.0"
 edition = "2021"
-description = "最小可用的 Linux Apple Music 遥控器：Rust + CDP + 官方网页播放器"
+description = "Apple Music in the terminal: true-color album art, a live spectrum and keyboard playback controls."
 license = "MIT"
 repository = "https://github.com/Wian1977/miniam"
 homepage = "https://github.com/Wian1977/miniam"
+documentation = "https://github.com/Wian1977/miniam/blob/master/docs/DETAIL.md"
+readme = "README.md"
+keywords = ["apple-music", "terminal", "tui", "music-player", "audio-visualizer"]
+categories = ["command-line-utilities", "multimedia::audio"]
+# 字体字库体积大（未压缩约 8MB），且可选；只有 font_iosevka.hex 被编译期 include。
+exclude = [
+  "assets/font12.hex",
+  "assets/unifont.hex",
+  "assets/unifont_bold.hex",
+  "assets/cover.png",
+  "assets/icon.png",
+  "docs/",
+  "build-deb.sh",
+]
 
 [dependencies]
 anyhow = "1"
