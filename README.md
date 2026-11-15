@@ -94,13 +94,17 @@ The spectrum reads audio samples from a local virtual sink in real time, only to
 ## Spectrum styles
 ### 频谱样式
 
+- Classic — terminal-default Sparkline
 - Bar — classic bars with particles
 - Radial — radial rays with a glow core
+- Fluid — electric-blue water whose crest rises and falls with each frequency band
 
 Press `c` to cycle.
 
+- **Classic 频谱** — 终端默认色的迷你柱状图
 - **Bar 频谱** — 传统柱状图样式，带粒子效果
 - **Radial 频谱** — 径向放射样式，带光晕效果
+- **Fluid 频谱** — 电光蓝水体，横向浪脊按频段能量起伏（低频强的段落浪更高），浪形由点阵逐点画出、深水底保持平滑底色，底部溅起的水花流速与亮度跟随音乐节奏（busyness + 节拍脉冲 pulse）涌动
 
 按 `c` 键可在不同样式间切换。
 
@@ -127,7 +131,13 @@ miniam/
 ├── src/
 │   ├── main.rs           # 主程序逻辑、TUI、音频处理
 │   ├── bitmap_font.rs    # 点阵字体渲染
-│   └── braille_text.rs   # 盲文点阵文字渲染
+│   ├── braille_text.rs   # 盲文点阵文字渲染
+│   └── spectrum/         # 四种频谱样式（各自独立插件）
+│       ├── mod.rs        # 插件接口与注册表
+│       ├── classic.rs    # 经典绿
+│       ├── neon.rs       # 霓虹粒子
+│       ├── radial.rs     # 放射
+│       └── fluid.rs      # 流体（自带点阵渲染）
 ├── assets/
 │   ├── font_iosevka.hex  # 默认点阵字库（Iosevka + 文泉驿）
 │   ├── font12.hex        # 早期默认字库

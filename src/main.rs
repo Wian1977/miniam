@@ -1274,12 +1274,13 @@ fn cover_split(area: ratatui::layout::Rect) -> (ratatui::layout::Rect, ratatui::
 /// 界面纵向分区：[0] 顶端封面（吃掉剩余空间，随窗口变化且图在区域内居中），
 /// [1] 封面与标题之间的留白，[2..6] 播放器信息条，[7] 底部频谱固定 4 行（绿/线/放射三方案）。
 /// 封面与频谱同时展示；封面区有最小高度，缩放窗口时自动调整但永不缩没。
-/// 界面纵向分区：外层顶部留 1 行间距，内层再纵向切分；整屏最后 1 行为居中的状态行。
+/// 界面纵向分区：**整屏最上面 1 行是居中的状态行**（queue=… backend=…），
+/// 频谱区紧贴**窗口底边**（其下不再有任何行），中间是封面 + 播放器信息条 + 帮助。
 /// [0] 封面(含底部点阵标题带) [1] 无(0 行) [2] 跑马灯 [3] 顶部空行 + 点阵播放态图标(下两行) + 时间行 [4] 进度条 [5] 无(0 行)
-/// [6] 帮助 [7] 频谱(4 行) [8] 状态行(整屏最后一行, 居中)。
+/// [6] 帮助 [7] 频谱(4 行，贴窗口底边) [8] 状态行(整屏最上面一行, 居中)。
 fn ui_chunks(size: ratatui::layout::Rect) -> std::rc::Rc<[ratatui::layout::Rect]> {
     use ratatui::layout::{Constraint, Direction, Layout};
-    // 外层：顶部 1 行间距 + 剩余（末尾 1 行留给居中的状态行）
+    // 外层：顶部 1 行（状态行）+ 剩余（频谱贴其底边）
     let outer = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(0)])
@@ -1293,10 +1294,10 @@ fn ui_chunks(size: ratatui::layout::Rect) -> std::rc::Rc<[ratatui::layout::Rect]
             Constraint::Length(1),   // 2: 歌曲信息跑马灯（歌曲名）
             Constraint::Length(4),   // 3: 顶部 1 行空行(与跑马灯间隔) + 居中放大的点阵播放态图标(下两行) + 时间行
             Constraint::Length(1),   // 4: 进度条
-            Constraint::Length(0),   // 5: 状态行已移到最底部 [8]
+            Constraint::Length(0),   // 5: 状态行已移到最上面 [8]
             Constraint::Length(2),   // 6: 帮助
-            Constraint::Length(4),   // 7: 底部频谱区（固定 4 行）
-            Constraint::Length(1),   // 8: 状态行（整屏最后一行，居中）
+            Constraint::Length(4),   // 7: 频谱区（固定 4 行，贴窗口底边）
+            Constraint::Length(0),   // 8: 状态行在整屏最上面（外层 [0]），此处留空
         ])
         .split(outer[1])
 }
@@ -1718,20 +1719,12 @@ fn raster_braille(buf: &image::RgbaImage, _cols: u32, rows: u32, ox: i64, oy: i6
                 _ => 0x6A, // 106: 行0右 行1左 行2右 行3左
             };
             let ch = char::from_u32(0x2800 + pattern).unwrap();
-            // bg = 平均色与最亮像素的混合（avg 权重 k）：
-            //   k=1.0 时 bg 纯平均色，点阵对比最强、最突兀；
-            //   k=0.0 时 bg=fg，点阵完全消失。
-            // k=0.4：点阵仍可感知但融入颜色，bg 又保留 40% 平均色信息保住渐变细腻度。
-            const BG_AVG_K: f32 = 0.4;
-            // 点阵深度：fg 乘这个系数。
-            //   1.0 = 点比背景略亮（原始）；
-            //   <1  = 点比背景更深，呈「蚀刻/磨砂」凹陷感，纹理更细腻不抢眼。
-            const FG_DEPTH: f32 = 0.75;
-            let (fr, fg, fb) = (
-                (mr as f32 * FG_DEPTH) as u8,
-                (mg as f32 * FG_DEPTH) as u8,
-                (mb as f32 * FG_DEPTH) as u8,
-            );
+            // bg = 块内亮度加权平均色的原色（不再与最亮像素混合）。
+            // 混入 60% 最亮像素会让背景整体偏亮，偏离交付基准（bg 亮度即块内均值）。
+            const BG_AVG_K: f32 = 1.0;
+            // fg = 块内最亮 lit 像素的原色，不再乘任何衰减系数。
+            // 乘 0.75 会把整幅画面压暗 25%，与交付基准（fg 亮度即最亮像素亮度）不符。
+            let (fr, fg, fb) = (mr, mg, mb);
             let (br, bg_, bb) = (
                 (avg.0 as f32 * BG_AVG_K + mr as f32 * (1.0 - BG_AVG_K)) as u8,
                 (avg.1 as f32 * BG_AVG_K + mg as f32 * (1.0 - BG_AVG_K)) as u8,
@@ -1740,6 +1733,124 @@ fn raster_braille(buf: &image::RgbaImage, _cols: u32, rows: u32, ox: i64, oy: i6
             spans.push(Span::styled(ch.to_string(), Style::default()
                 .fg(Color::Rgb(fr, fg, fb))
                 .bg(Color::Rgb(br, bg_, bb))));
+        }
+        lines.push(Line::from(spans));
+    }
+    lines
+}
+
+/// Fluid (soft wave) dedicated rasterizer: **content-driven** braille dots, not a
+/// fixed positional pattern.
+///
+/// raster_braille picks one of 6 dot patterns via (cx*7 + y*13) % 6 -- that depends
+/// only on position, never on image content -- so the whole band ends up covered by a
+/// mechanically repeating background dot matrix, and the wave shape only leaks through
+/// faintly via color. Here each of the 8 sub-pixels lights up according to its own
+/// brightness, so:
+///   * the deep water body stays unlit -> no background dot matrix, the body remains a
+///     smooth color gradient;
+///   * the wave crest / spray lights up -> the wave is genuinely drawn by the dots.
+///
+/// Why braille and not quadrant blocks (▀▄█▌▐): quadrant blocks give only 2 vertical
+/// levels per character cell, which flattens the crest into a horizontal stripe.
+/// Braille gives 4 vertical levels per cell -> measurably finer wave shape
+/// (15.4 vs 12.3 distinct vertical colors per column) while the background stays
+/// dot-free, because only bright pixels are lit.
+///
+/// Colors: fg = brightest lit pixel in the cell (original color), bg = average color of
+/// the cell (keeps the water gradient continuous). Every span carries an explicit bg
+/// (pure black), so the terminal default background never shows through as holes.
+fn raster_fluid(
+    buf: &image::RgbaImage,
+    _cols: u32,
+    rows: u32,
+    ox: i64,
+    oy: i64,
+) -> Vec<ratatui::text::Line<'static>> {
+    use ratatui::style::{Color, Style};
+    use ratatui::text::{Line, Span};
+    const CW: u32 = 2; // pixels per cell horizontally
+    const CH: u32 = 4; // pixels per cell vertically
+    /// Sub-pixel lighting threshold: brightness (r+g+b) at or above this lights up.
+    /// The deep water body sits well below it; only the wave crest / spray exceeds it.
+    const LIT_LUM: u32 = 320;
+    let w_px = buf.width();
+    let h_px = buf.height();
+    let ncols = (w_px / CW) as i64;
+    let nrows = (h_px / CH) as i64;
+    let mut lines = Vec::with_capacity(rows as usize);
+    for y in 0..rows {
+        let ry = y as i64 - oy;
+        if ry < 0 || ry >= nrows {
+            lines.push(Line::from(Vec::<Span>::new()));
+            continue;
+        }
+        let mut spans: Vec<Span> = Vec::with_capacity((ox.max(0) as usize) + ncols as usize);
+        if ox > 0 {
+            spans.push(Span::raw(" ".repeat(ox as usize)));
+        }
+        for cx in 0..ncols {
+            let px0 = (cx + ox) * CW as i64;
+            let py0 = ry * CH as i64;
+            if px0 < 0 || px0 + CW as i64 > w_px as i64 || py0 < 0 || py0 + CH as i64 > h_px as i64 {
+                spans.push(Span::raw(" "));
+                continue;
+            }
+            let mut bits: u32 = 0;
+            let mut mr = 0u8;
+            let mut mg = 0u8;
+            let mut mb = 0u8;
+            let mut mlum = 0u32;
+            let mut ar = 0u32;
+            let mut ag = 0u32;
+            let mut ab = 0u32;
+            let mut an = 0u32;
+            for r4 in 0..CH {
+                for c2 in 0..CW {
+                    let p = buf.get_pixel((px0 + c2 as i64) as u32, (py0 + r4 as i64) as u32);
+                    let lum = p[0] as u32 + p[1] as u32 + p[2] as u32;
+                    if lum >= LIT_LUM {
+                        // braille bit layout: bit0-2 = rows0-2 left column,
+                        // bit3-5 = rows0-2 right column, bit6 = row3 left, bit7 = row3 right.
+                        if c2 == 0 {
+                            bits |= 1 << (if r4 < 3 { r4 } else { 6 });
+                        } else {
+                            bits |= 1 << (if r4 < 3 { r4 + 3 } else { 7 });
+                        }
+                    }
+                    if lum > mlum {
+                        mlum = lum;
+                        mr = p[0];
+                        mg = p[1];
+                        mb = p[2];
+                    }
+                    ar += p[0] as u32;
+                    ag += p[1] as u32;
+                    ab += p[2] as u32;
+                    an += 1;
+                }
+            }
+            let (bg_r, bg_g, bg_b) = if an > 0 {
+                ((ar / an) as u8, (ag / an) as u8, (ab / an) as u8)
+            } else {
+                (0, 0, 0)
+            };
+            if bits == 0 {
+                // Deep water body: unlit, but still carries an explicit bg so the band
+                // stays continuous and never shows the terminal default background.
+                spans.push(Span::styled(
+                    " ",
+                    Style::default().bg(Color::Rgb(bg_r, bg_g, bg_b)),
+                ));
+            } else {
+                let ch = char::from_u32(0x2800 + bits).unwrap();
+                spans.push(Span::styled(
+                    ch.to_string(),
+                    Style::default()
+                        .fg(Color::Rgb(mr, mg, mb))
+                        .bg(Color::Rgb(bg_r, bg_g, bg_b)),
+                ));
+            }
         }
         lines.push(Line::from(spans));
     }
@@ -1843,6 +1954,8 @@ impl AudioDyn {
     fn busyness(&self) -> f32 { (self.flux * 1.4 + self.treble * 0.8).clamp(0.0, 1.0) }
     /// 重：低频 + 节拍，决定向下重力
     fn heaviness(&self) -> f32 { (self.bass * 0.8 + self.pulse * 0.6).clamp(0.0, 1.0) }
+    /// 段落增益：当前乐段整体响度（平滑总能量 0..1），用于弱段压暗、强段全亮。
+    fn passage_gain(&self) -> f32 { self.energy }
 }
 
 /// 霓虹饱和化：把最亮通道推到 255、最暗压到低位，产生电光感（暗底才发光）。
@@ -2131,10 +2244,12 @@ fn draw_ui(
         format!("♪ {}", qname)
     };
     let status_line = format!("{}   backend={}", playlist_part, bname);
+    // 状态行在整屏最上面一行（chunks[8] 现在是内层留空的 0 高度占位）。
+    let status_rect = ratatui::layout::Rect { height: 1, ..size };
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(status_line, Style::default())))
             .alignment(ratatui::layout::Alignment::Center),
-        chunks[8],
+        status_rect,
     );
     let help = if msg.is_empty() {
         "space play/pause - n next - b prev - c spectrum - Esc quit"
@@ -2186,8 +2301,17 @@ fn draw_ui(
             f.render_widget(Paragraph::new(cap_lines), cap_rect);
         }
     }
-    // 底部频谱区：spec_mode 决定方案——0 绿(经典) / 1 霓虹线 / 2 放射。
-    if spec_mode == 0 {
+    // 底部频谱区：0 绿(经典) 走 ratatui Sparkline，与重构前一致；其余模式由插件输出 braille 栅格行，用 Paragraph 渲染。
+    //
+    // 未播放音乐时不显示频谱：没有声音时频谱只是一条静止的假波形（还会让人
+    // 以为程序在「假装播放」）。这里整块画成纯黑，而不是留上一帧的残影
+    // （ratatui 是差分刷新，不画的话旧帧的字符会留在屏幕上）。
+    if !playing {
+        f.render_widget(
+            Block::default().style(Style::default().bg(Color::Rgb(0, 0, 0))),
+            chunks[7],
+        );
+    } else if spec_mode == 0 {
         let sw = chunks[7].width as usize;
         let spec7 = resize_spec(spectrum, sw);
         f.render_widget(
@@ -3521,15 +3645,14 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
     let (cover_tx, mut cover_rx) = mpsc::unbounded_channel::<Vec<ratatui::text::Line>>();
     let mut cover_lines: Vec<ratatui::text::Line> = Vec::new();
     let mut last_artwork: Option<String> = None;
-    let mut particles: Vec<Particle> = Vec::new();
-    let mut peaks: Vec<f32> = vec![0.0f32; 64];
     let mut audio_dyn = AudioDyn::default();
     // 放射状频谱（曲速风格）开关与独立粒子池 / 呼吸相位。
-    let mut spec_mode: u8 = 1; // 0=绿(经典) 1=霓虹线 2=放射；c 键循环
+    let mut spec_mode: u8 = 1; // 0=绿(经典) 1=霓虹线 2=放射 3=流体；c 键循环
+    let mut renderer: Box<dyn spectrum::SpectrumPlugin> = spectrum::make_plugin(spec_mode);
     let mut radial_phase: f32 = 0.0;
+    let mut fluid_phase: f32 = 0.0;
     let mut radial_beat_wave: Option<f32> = None;
     let mut radial_fade: f32 = 0.0;
-    let mut radial_particles: Vec<Particle> = Vec::new();
     // 启动时探测一次终端单元格比例，避免每帧查询阻塞输入线程。
     if let Ok(mut a) = COVER_ASPECT.lock() {
         *a = detect_cell_aspect();
@@ -3723,6 +3846,8 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
         // 0.02s is the base frame interval of the 20ms spectrum feed.
         let wave_speed = 0.8 + audio_dyn.flux * 2.2 + audio_dyn.energy * 0.5;
         radial_phase = (radial_phase + wave_speed * 0.02) % 1.0;
+        // 流体相位比放射慢一点，做出粘稠感；驱动液面晃动，不做横向平移。
+        fluid_phase = (fluid_phase + (0.45 + audio_dyn.energy * 0.55) * 0.02) % 1.0;
         if let Some(t) = radial_beat_wave.as_mut() {
             *t += wave_speed * 0.02 * 1.3;
             if *t >= 1.0 { radial_beat_wave = None; }
@@ -3756,21 +3881,17 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
         }
     };
     let spec_area = ui_chunks(f.area())[7];
-            if let Some(inten) = do_burst {
-                // 粒子坐标系与 render_spectrum 一致：bw = cols*2, bh = rows*4
-                spawn_beat_burst(&mut particles, spec_area.width as f32 * 2.0, spec_area.height as f32 * 4.0, inten, &audio_dyn, &spectrum_data);
-            }
             let spec_iw = spec_area.width as u32;
             let spec_ih = spec_area.height as u32;
             let cover_to_draw = cover_lines.clone();
-            let spectrum_lines = if spec_mode == 2 {
-                render_radial_spectrum(&spectrum_data, spec_iw, spec_ih, &mut radial_particles, &audio_dyn, radial_phase, radial_beat_wave, do_burst, radial_fade)
-            } else if spec_mode == 1 {
-                build_spectrum(&spectrum_data, spec_iw, spec_ih, &mut particles, &mut peaks, &audio_dyn)
-            } else {
-                // 绿(经典)模式：底部频谱区由 draw_ui 用 Sparkline 直接画，这里传空
-                Vec::new()
+            let ctx = spectrum::SpectrumCtx {
+                phase: if spec_mode == 2 { radial_phase } else if spec_mode == 3 { fluid_phase } else { 0.0 },
+                beat_wave: radial_beat_wave,
+                do_burst,
+                fade: radial_fade,
+                neon: SPEC_NEON,
             };
+            let spectrum_lines = renderer.render(&spectrum_data, spec_iw, spec_ih, &audio_dyn, &ctx);
             draw_ui(f, &status, busy, fb_phase, &message, backend_name, &spectrum_data, &cover_to_draw, &spectrum_lines, spec_mode)
         })?;
         // radial_phase / radial_beat_wave are advanced above (audio-driven).
@@ -3920,7 +4041,8 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
                 KeyCode::Esc => { kill_browser(); break; },
                 KeyCode::Char('q') => { kill_browser(); break; },
                 KeyCode::Char('c') => {
-                    spec_mode = (spec_mode + 1) % 3;
+                    spec_mode = (spec_mode + 1) % 4;
+                    renderer = spectrum::make_plugin(spec_mode);
                     blink_until = Some(Instant::now() + Duration::from_millis(600));
                 }
                 KeyCode::Char('d') => {
@@ -3940,11 +4062,14 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
                             let spec_area = ui_chunks(f.area())[7];
                             let spec_iw = spec_area.width as u32;
                             let spec_ih = spec_area.height as u32;
-                            let spectrum_lines = if spec_mode == 2 {
-                                render_radial_spectrum(&spectrum_data, spec_iw, spec_ih, &mut radial_particles, &audio_dyn, radial_phase, radial_beat_wave, do_burst, radial_fade)
-                            } else {
-                                build_spectrum(&spectrum_data, spec_iw, spec_ih, &mut particles, &mut peaks, &audio_dyn)
+                            let ctx = spectrum::SpectrumCtx {
+                                phase: if spec_mode == 2 { radial_phase } else if spec_mode == 3 { fluid_phase } else { 0.0 },
+                                beat_wave: radial_beat_wave,
+                                do_burst,
+                                fade: radial_fade,
+                                neon: SPEC_NEON,
                             };
+                            let spectrum_lines = renderer.render(&spectrum_data, spec_iw, spec_ih, &audio_dyn, &ctx);
                             draw_ui(f, &status, busy, None, "", backend_name, &spectrum_data, &cover_lines, &spectrum_lines, spec_mode)
                         })?;
                         let _ = cmd_tx.send(UiCmd::Boot);
@@ -4434,8 +4559,13 @@ mod quadrant_tests {
         assert!(!all.contains("无音频输入"), "无音频诊断文字已去掉");
         let help_line = line_str(chunks[6].y);
         assert!(help_line.contains('p'), "其他信息条保持");
+        // 状态行（queue=… backend=…）必须落在整屏最上面一行
+        let top = line_str(0);
+        assert!(top.contains("backend="), "状态行在整屏最上面一行");
+        assert!(!line_str(area.height - 1).contains("backend="), "状态行不在窗口底边");
 
-        // 不同窗口尺寸下：频谱恒 4 行，其下方 1 行为居中的状态行贴窗口底边；封面有最小高度并随窗口增大而增高。
+        // 不同窗口尺寸下：状态行在整屏最上面一行，频谱恒 4 行并贴紧窗口底边；
+        // 封面有最小高度并随窗口增大而增高。
         let mut cover_heights = Vec::new();
         for (w, h) in [(80u16, 24u16), (120, 40), (200, 60)] {
             let c = ui_chunks(ratatui::layout::Rect::new(0, 0, w, h));
@@ -4443,9 +4573,11 @@ mod quadrant_tests {
             assert!(c[0].y < c[1].y && c[6].y < c[7].y, "封面在最顶、频谱在最底");
             assert_eq!(c[1].y + c[1].height, c[2].y, "绿色小频谱紧邻歌曲名上方");
             assert_eq!(c[0].width, w, "封面区占满窗口宽度，图在其中居中");
-            // 状态行贴窗口底边：底部无空隙；频谱在其正上方
-            assert_eq!(c[8].y + c[8].height, h, "状态行紧贴窗口底边");
-            assert_eq!(c[7].y + c[7].height, c[8].y, "频谱紧邻状态行上方");
+            // 频谱紧贴窗口底边：底部无空隙
+            assert_eq!(c[7].y + c[7].height, h, "频谱紧贴窗口底边");
+            // 状态行在整屏最上面一行（内层 chunks[8] 是 0 高度占位）
+            assert_eq!(c[8].height, 0, "状态行不占内层高度（它在外层第 0 行）");
+            assert_eq!(c[7].y, c[6].y + c[6].height, "频谱紧邻帮助行下方");
             // 封面有最小高度，且随窗口增大而增高（自动调整）
             assert!(c[0].height >= COVER_MIN_ROWS, "封面有最小高度");
             cover_heights.push(c[0].height);
@@ -4568,3 +4700,4 @@ mod quadrant_tests {
 }
 mod bitmap_font;
 mod braille_text;
+mod spectrum;
