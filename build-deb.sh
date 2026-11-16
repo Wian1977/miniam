@@ -2,7 +2,7 @@
 # 把 miniam 打成 .deb（二进制 + README）。产物放仓库外，发布时上传 Release。
 set -euo pipefail
 APP=miniam
-VERSION=${1:-0.1.1}
+VERSION=${1:-0.1.2}
 ARCH=$(dpkg --print-architecture 2>/dev/null || echo amd64)
 HERE=$(cd "$(dirname "$0")" && pwd)
 BIN=$HERE/target/release/$APP

@@ -1,6 +1,6 @@
 [package]
 name = "miniam"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Apple Music in the terminal: true-color album art, a live spectrum and keyboard playback controls."
 license = "MIT"

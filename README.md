@@ -1,17 +1,17 @@
 # miniam
 
 <p align="center">
-  <img src="https://github.com/Wian1977/miniam/releases/download/v0.1.1/icon.png" width="96" alt="miniam icon">
+  <img src="https://github.com/Wian1977/miniam/releases/download/v0.1.2/icon.png" width="96" alt="miniam icon">
 </p>
 
 [![Build & Release](https://github.com/Wian1977/miniam/actions/workflows/release.yml/badge.svg)](https://github.com/Wian1977/miniam/actions/workflows/release.yml)
-`v0.1.1` · `MIT` · `Linux x86_64` · [下载 / Downloads](https://github.com/Wian1977/miniam/releases/tag/v0.1.1) · [crates.io](https://crates.io/crates/miniam) · [Gitee 镜像](https://gitee.com/wian77/miniam)
+`v0.1.2` · `MIT` · `Linux x86_64` · [下载 / Downloads](https://github.com/Wian1977/miniam/releases/tag/v0.1.2) · [crates.io](https://crates.io/crates/miniam) · [Gitee 镜像](https://gitee.com/wian77/miniam)
 
 One command to play Apple Music in your terminal. Keep it open while coding, reading logs or waiting for a build; no browser window to open, no webpage to click for the next track.
 
 一行命令，在终端里听 Apple Music。适合写代码、看日志、跑构建的时候开着。不用另开浏览器窗口，也不用为切歌去点网页。
 
-![miniam cover](https://github.com/Wian1977/miniam/releases/download/v0.1.1/cover.png)
+![miniam cover](https://github.com/Wian1977/miniam/releases/download/v0.1.2/cover.png)
 
 ## Features
 ### 功能特点
@@ -40,9 +40,9 @@ A browser window opens on first launch to sign in to Apple Music; sign in once a
 
 首次启动会弹出浏览器窗口让你登录 Apple Music，登录完成后按回车继续。之后可直接进入界面。
 
-Prebuilt binaries and a Debian package live on the [releases page](https://github.com/Wian1977/miniam/releases/tag/v0.1.1).
+Prebuilt binaries and a Debian package live on the [releases page](https://github.com/Wian1977/miniam/releases/tag/v0.1.2).
 
-预编译二进制与 Debian 安装包见[发布页](https://github.com/Wian1977/miniam/releases/tag/v0.1.1)。
+预编译二进制与 Debian 安装包见[发布页](https://github.com/Wian1977/miniam/releases/tag/v0.1.2)。
 
 ## Keyboard
 ### 键盘控制
