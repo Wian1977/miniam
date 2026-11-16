@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=miniam
+GenericName=Apple Music Player
+Comment=Play Apple Music in the terminal
+Comment[zh_CN]=在终端里播放 Apple Music
+Icon=io.github.wian1977.miniam
+Exec=miniam
+TryExec=miniam
+Terminal=true
+Categories=AudioVideo;Audio;Player;ConsoleOnly;
+Keywords=apple music;music;player;terminal;tui;spectrum;visualizer;音乐;播放器;终端;
+StartupNotify=false
+StartupWMClass=miniam

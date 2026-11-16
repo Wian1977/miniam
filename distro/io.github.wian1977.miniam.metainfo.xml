@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 Wian1977 -->
+<component type="desktop-application">
+  <id>io.github.wian1977.miniam</id>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>miniam</name>
+  <summary>Play Apple Music in the terminal</summary>
+  <summary xml:lang="zh_CN">在终端里播放 Apple Music</summary>
+
+  <developer id="io.github.wian1977">
+    <name>Wian1977</name>
+  </developer>
+
+  <description>
+    <p>
+      miniam plays Apple Music in a terminal window. A hidden browser window streams the audio while the terminal shows true-color album art, the track title and a live spectrum, so you can keep music playing while you work.
+    </p>
+    <p xml:lang="zh_CN">
+      miniam 在终端窗口里播放 Apple Music。后台浏览器负责推流，终端里显示真彩专辑封面、歌名和动态频谱，写代码时也能一直放着歌。
+    </p>
+    <p>Features:</p>
+    <p xml:lang="zh_CN">功能：</p>
+    <ul>
+      <li>True-color album art rendered with Unicode quadrant blocks</li>
+      <li xml:lang="zh_CN">用 Unicode 象限字符渲染真彩专辑封面</li>
+      <li>Live spectrum with several styles that follow the music</li>
+      <li xml:lang="zh_CN">动态频谱，多种样式跟随音乐起伏</li>
+      <li>Keyboard playback controls: play/pause, next, previous</li>
+      <li xml:lang="zh_CN">键盘控制播放：暂停/继续、下一首、上一首</li>
+      <li>The spectrum reads only its own audio stream, so other apps' sound does not move it</li>
+      <li xml:lang="zh_CN">频谱只读自己这一路音频，别的程序出声不影响它</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.wian1977.miniam.desktop</launchable>
+
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+    <category>Player</category>
+  </categories>
+
+  <keywords>
+    <keyword>apple music</keyword>
+    <keyword>music</keyword>
+    <keyword>player</keyword>
+    <keyword>terminal</keyword>
+    <keyword>tui</keyword>
+    <keyword>spectrum</keyword>
+    <keyword>visualizer</keyword>
+    <keyword>音乐</keyword>
+    <keyword>播放器</keyword>
+    <keyword>终端</keyword>
+  </keywords>
+
+  <provides>
+    <binary>miniam</binary>
+  </provides>
+
+  <url type="homepage">https://github.com/Wian1977/miniam</url>
+  <url type="bugtracker">https://github.com/Wian1977/miniam/issues</url>
+  <url type="help">https://github.com/Wian1977/miniam#readme</url>
+  <url type="donation">https://github.com/sponsors/Wian1977</url>
+
+  <icon type="stock">io.github.wian1977.miniam</icon>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>miniam in a terminal: cover art, track title and a live spectrum</caption>
+      <image>https://github.com/Wian1977/miniam/releases/download/v0.1.1/cover.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.1.1" date="2026-11-15">
+      <description>
+        <p>Fluid wave spectrum, four spectrum styles, status line on the top row and the spectrum flush with the bottom edge.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-11-13">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+</component>

@@ -15,6 +15,15 @@ trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/usr/bin" "$STAGE/usr/share/doc/$APP" "$STAGE/DEBIAN"
 install -m755 "$BIN" "$STAGE/usr/bin/$APP"
 install -m644 "$HERE/README.md" "$STAGE/usr/share/doc/$APP/README.md"
+
+# 桌面集成：让 miniam 出现在应用菜单与 Discover / GNOME Software 等软件中心。
+APP_ID=io.github.wian1977.miniam
+install -Dm644 "$HERE/distro/$APP_ID.desktop" "$STAGE/usr/share/applications/$APP_ID.desktop"
+install -Dm644 "$HERE/distro/$APP_ID.metainfo.xml" "$STAGE/usr/share/metainfo/$APP_ID.metainfo.xml"
+for size in 64x64 128x128 256x256 512x512; do
+  install -Dm644 "$HERE/distro/icons/hicolor/$size/apps/$APP_ID.png" \
+    "$STAGE/usr/share/icons/hicolor/$size/apps/$APP_ID.png"
+done
 cat > "$STAGE/DEBIAN/control" <<CTRL
 Package: $APP
 Version: $VERSION
