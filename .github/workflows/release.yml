@@ -34,6 +34,9 @@ jobs:
           NAME="miniam-${{ steps.v.outputs.ver }}-linux-x86_64"
           mkdir -p "$NAME"
           cp target/release/miniam README.md "$NAME/"
+          # 带上桌面集成元数据（.desktop / AppStream / hicolor 图标），
+          # 让发行版打包者与软件中心能直接收录。
+          cp -r distro "$NAME/"
           tar -czf "$NAME.tar.gz" "$NAME"
           echo "ASSET=$NAME.tar.gz" >> "$GITHUB_ENV"
 
