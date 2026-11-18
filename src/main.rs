@@ -3034,7 +3034,11 @@ fn move_browser_streams_to(capture: &str, real_default: &str, want: Option<u32>)
 /// 2) 把虚拟 sink 设为默认输出，浏览器（含重建的流）会自动路由到这里，抓取不丢；
 /// 3) 显式把当前浏览器流连到虚拟 sink（当下就能抓）。
 /// 回环只清理我们自己创建的模块，复用已有回环时不卸载，避免误删别人的音频图状态。
-fn ensure_capture_pipeline(capture: &str, real_default: &str, loopback_mod: &mut Option<i64>) {
+fn ensure_capture_pipeline(capture: &str, loopback_state: &mut Option<(i64, String)>) {
+    // 每次都查当前默认 sink，而不是用启动时的快照：用户可能在声音设置里切输出设备
+    // （如 Speakers <-> HomePod-Virtual），回环必须跟着切，否则声音会留在旧 sink、
+    // 且和转发脚本互相卸载/重建同一条回环，造成断断续续。
+    let real_default = real_hardware_sink();
     if real_default.is_empty() {
         // 系统里找不到任何真实输出设备：不要接管音频到不出声的虚拟 sink，
         // 也不要把默认输出改成它（否则残留污染，之后设备回来也出不了声）。
@@ -3066,11 +3070,24 @@ fn ensure_capture_pipeline(capture: &str, real_default: &str, loopback_mod: &mut
         // 这里写日志，方便用户报问题时能立刻定位。
         log_audio_note("未能识别 miniam 自己的浏览器进程，频谱源将没有信号（浏览器是否已启动？）");
     }
-    move_browser_streams_to(capture, real_default, browser_pid);
+    move_browser_streams_to(capture, &real_default, browser_pid);
     let src = format!("{}.monitor", capture);
-    if loopback_module_id(&src, real_default).is_none() {
-        if let Some(id) = load_loopback(&src, real_default) {
-            *loopback_mod = Some(id);
+    // 目标 sink 变了：先卸载指向旧 sink 的回环，否则会同时向两个 sink 输出（喇叭与 HomePod 一起响）。
+    let target_changed = loopback_state
+        .as_ref()
+        .map(|(_, old)| old != &real_default)
+        .unwrap_or(false);
+    if target_changed {
+        if let Some((old_id, _)) = loopback_state.take() {
+            unload_module(old_id);
+        }
+    }
+    if loopback_state.is_none() {
+        // 复用已存在的回环（可能是转发脚本建的），纳入跟踪，便于日后切换时一起卸载。
+        let id = loopback_module_id(&src, &real_default)
+            .or_else(|| load_loopback(&src, &real_default));
+        if let Some(id) = id {
+            *loopback_state = Some((id, real_default.clone()));
         }
     }
 }
@@ -3140,7 +3157,8 @@ fn start_audio_capture(
 
         let mut active = pick_best_source(&candidates);
         let mut engaged = false;
-        let mut loopback_mod: Option<i64> = None;
+        // 跟踪当前回环：模块 id + 目标 sink，目标变化时先卸载旧的再建新的。
+        let mut loopback_state: Option<(i64, String)> = None;
         let mut last_sync: Option<Instant> = None;
 
         loop {
@@ -3186,7 +3204,7 @@ fn start_audio_capture(
                 if last_sync.map(|t| t.elapsed() >= Duration::from_secs(2)).unwrap_or(true) {
                     last_sync = Some(Instant::now());
                     if let Some(ns) = &null_sink {
-                        ensure_capture_pipeline(ns, &orig_default, &mut loopback_mod);
+                        ensure_capture_pipeline(ns, &mut loopback_state);
                     }
                 }
                 match rd.read(&mut buf) {
@@ -3360,13 +3378,13 @@ fn start_audio_capture(
                     }
                     if probe_source_level(&mon, 300) > 0.0 {
                         // 虚拟 monitor 已经在出声：把浏览器音频接回并让虚拟 sink 出声（loopback 回环到真实声卡）。
-                        ensure_capture_pipeline(ns, &orig_default, &mut loopback_mod);
+                        ensure_capture_pipeline(ns, &mut loopback_state);
                         engaged = true;
                         active = pick_best_source(&candidates);
                         silence_start = None;
                     } else if playing.load(Ordering::Relaxed) {
                         // 真实 monitor 静音但音乐在播：把浏览器音频接到虚拟 sink（抓取），并用 loopback 回环到真实声卡出声。
-                        ensure_capture_pipeline(ns, &orig_default, &mut loopback_mod);
+                        ensure_capture_pipeline(ns, &mut loopback_state);
                         engaged = true;
                         active = pick_best_source(&candidates);
                         silence_start = None;
@@ -3376,7 +3394,7 @@ fn start_audio_capture(
             std::thread::sleep(Duration::from_millis(200));
         }
         // 收尾：卸载回环与虚拟 sink，并把默认输出还原成真实声卡，避免污染系统音频图
-        if let Some(id) = loopback_mod {
+        if let Some((id, _)) = loopback_state {
             unload_module(id);
         }
         // 启动时若已被上次残留污染、没记到真实声卡，退而求其次选当前任一
