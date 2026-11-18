@@ -88,9 +88,9 @@ Prebuilt binaries and a Debian package live on the [releases page](https://githu
 ### Audio routing
 ### 音频链路
 
-The browser stream is moved into a virtual sink (`miniam_capture`) and looped back to the real output device. The system default sink stays untouched.
+The browser stream is moved into a virtual sink (`miniam_capture`) and looped back to the current output device. miniam never changes the system default sink itself, but the loopback follows it: switch outputs in your system sound settings (e.g. between speakers and a virtual HomePod device) and audio follows automatically, with no dropouts.
 
-程序创建虚拟音频接收器，用 PulseAudio/PipeWire 把浏览器音频搬进去，再回环到真实输出设备；系统默认输出保持原样。
+程序创建虚拟音频接收器，用 PulseAudio/PipeWire 把浏览器音频搬进去，再回环到当前输出设备。miniam 自身不会修改系统默认输出，但回环会跟随它：在系统声音设置里切换输出设备（例如喇叭与 HomePod 虚拟设备之间）时，声音会自动跟着走，不会中断或断断续续。
 
 ### Local audio use
 ### 本地音频用途
