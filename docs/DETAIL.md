@@ -34,22 +34,21 @@ miniam
 
 ## 乐段感知（启发式）
 
-频谱会随音乐的能量起伏自动调整粒子密度、波环亮度和整体明暗：能量持续偏高且密集时略密略亮，能量塌落时收敛、整片压暗。默认与高能段维持改造前的亮度，只有弱段才向下收敛。按 c 键切换的四种呈现都生效——绿(经典)保持终端默认色、弱段变暗，霓虹线调火花密度，放射调拖尾与整片亮度，流体调波纹幅度与亮度。判定只用能量、低频、高频和谱通量的长时窗口（约 6 秒）与滞回，**不识别真实曲式**，对古典、爵士、环境音乐可能判错。纯本地算术，不新增依赖；音频仍只用于可视化，不落盘、不上传。
+频谱会随音乐的能量起伏自动调整粒子密度、波环亮度和整体明暗：能量持续偏高且密集时略密略亮，能量塌落时收敛、整片压暗。默认与高能段维持改造前的亮度，只有弱段才向下收敛。按 c 键切换的五种呈现都生效——绿(经典)保持终端默认色、弱段变暗，霓虹线调火花密度，放射调拖尾与整片亮度，流体调波纹幅度与亮度，摩尔纹调节拍扩散与闪烁。判定只用能量、低频、高频和谱通量的长时窗口（约 6 秒）与滞回，**不识别真实曲式**，对古典、爵士、环境音乐可能判错。纯本地算术，不新增依赖；音频仍只用于可视化，不落盘、不上传。
 
 ## 频谱插件架构
 
-四种频谱样式各是一个独立插件，放在 `src/spectrum/`：
+五种频谱样式各是一个独立插件，放在 `src/spectrum/`：
 
 - `classic.rs` —— 经典绿（mode 0）。实际由 `draw_ui` 用 ratatui 原生 `Sparkline` 渲染，刻意保留与重构前一致的外观；`ClassicPlugin` 仍注册在 `make_plugin` 中，但输出不用于显示。
 - `neon.rs` —— 霓虹粒子（mode 1）。
 - `radial.rs` —— 放射（mode 2）。
-- `fluid.rs` —— 流体（mode 3）。它有**自己的栅格化**（`raster_fluid`，按像素内容逐点打 braille 点），
-  与其余模式共用的 `raster_braille`（按位置选固定点阵）分开 —— 后者会铺一张机械重复的背景点阵，
-  盖住水波形状。
+- `fluid.rs` —— 流体（mode 3）。以纯色块呈现：每字符格取最亮像素色，前景背景同色，不输出盲文点阵。
+- `moire.rs` —— 摩尔纹（mode 4）。盲文点阵铺满整片频谱区，同心圆环随节拍向外扩散、环面被鼓点扭动并闪烁；配色取自专辑封面渐变。
 
-`mod.rs` 定义插件接口 `SpectrumPlugin` 与每帧传给插件的派生量 `SpectrumCtx`（相位 `phase`、节拍波前 `beat_wave`、起拍喷发 `do_burst`、淡入淡出 `fade`、霓虹色 `neon`）；`make_plugin(mode)` 按 `spec_mode` 静态创建对应插件。
+`mod.rs` 定义插件接口 `SpectrumPlugin` 与每帧传给插件的派生量 `SpectrumCtx`（相位 `phase`、节拍波前 `beat_wave`、起拍喷发 `do_burst`、淡入淡出 `fade`、霓虹色 `neon`、封面渐变 `cover_grad`）；`make_plugin(mode)` 按 `spec_mode` 静态创建对应插件。
 
-主循环持有一个 `Box<dyn SpectrumPlugin>`，每帧调用 `renderer.render(spectrum, cols, rows, dyn_state, ctx)` 取回 braille 栅格行；按 `c` 切模式时重建 renderer（`spec_mode = (spec_mode + 1) % 4`）。每个插件自管跨帧状态（粒子池、流体水位等）。
+主循环持有一个 `Box<dyn SpectrumPlugin>`，每帧调用 `renderer.render(spectrum, cols, rows, dyn_state, ctx)` 取回栅格行；按 `c` 切模式时重建 renderer（`spec_mode = (spec_mode + 1) % 5`）。每个插件自管跨帧状态（粒子池、流体水位等）。
 
 后续规划（尚未实现）：约定运行时目录（如 `./spectrum_plugins/`），miniam 启动或运行中监控该目录、用 libloading 动态 dlopen 后填充注册表，做到放入文件无需重启即载入；届时 `make_plugin` 改为从注册表按索引取。
 

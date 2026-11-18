@@ -1389,6 +1389,145 @@ fn render_cover_from_image(img: &image::DynamicImage, w: u16, h: u16) -> Vec<rat
     raster_quadrant_blocks(&big, cols, rows, cw, ch)
 }
 
+fn cover_gradient(img: &image::DynamicImage) -> Option<((u8, u8, u8), (u8, u8, u8))> {
+    use image::imageops::FilterType;
+    const BUCKETS: usize = 36; // 每桶 10°
+
+    let small = if img.width() > 128 || img.height() > 128 {
+        img.resize(128, 128, FilterType::Triangle)
+    } else {
+        img.clone()
+    };
+    let rgba = small.to_rgba8();
+
+    let mut cnt = vec![0u32; BUCKETS];
+    let mut sw = vec![0f64; BUCKETS]; // Σ s
+    let mut acc = vec![(0f64, 0f64, 0f64); BUCKETS];
+    let mut total = 0u32;
+    for p in rgba.pixels() {
+        if p[3] < 8 {
+            continue; // 全透明像素
+        }
+        let (r, g, b) = (p[0] as f32 / 255.0, p[1] as f32 / 255.0, p[2] as f32 / 255.0);
+        let mx = r.max(g).max(b);
+        let mn = r.min(g).min(b);
+        let v = mx;
+        let s = if mx <= 0.0 { 0.0 } else { (mx - mn) / mx };
+        let d = mx - mn;
+        let h = if d <= 0.0 {
+            0.0
+        } else if mx == r {
+            (((g - b) / d).rem_euclid(6.0)) / 6.0
+        } else if mx == g {
+            ((b - r) / d + 2.0) / 6.0
+        } else {
+            ((r - g) / d + 4.0) / 6.0
+        };
+        let bucket = ((h.rem_euclid(1.0)) * BUCKETS as f32) as usize % BUCKETS;
+        cnt[bucket] += 1;
+        sw[bucket] += s as f64;
+        acc[bucket].0 += r as f64;
+        acc[bucket].1 += g as f64;
+        acc[bucket].2 += b as f64;
+        total += 1;
+    }
+    if total == 0 {
+        return None;
+    }
+
+    // 主色 = 占比最多的色簇；第二色 = 占比第二（排除相邻 2 桶以内）
+    let b1 = (0..BUCKETS).max_by_key(|&i| cnt[i])?;
+    let b2 = (0..BUCKETS)
+        .filter(|&i| {
+            if i == b1 || cnt[i] == 0 {
+                return false;
+            }
+            let d = (i as i32 - b1 as i32).abs();
+            d.min(BUCKETS as i32 - d) >= 2
+        })
+        .max_by_key(|&i| cnt[i]);
+
+    let mean_hsv = |i: usize| -> (f32, f32, f32) {
+        let n = cnt[i].max(1) as f64;
+        rgb_to_hsv(
+            (acc[i].0 / n) as f32,
+            (acc[i].1 / n) as f32,
+            (acc[i].2 / n) as f32,
+        )
+    };
+    let (h1, s1, v1) = mean_hsv(b1);
+    let (h2, s2, v2) = match b2 {
+        Some(i) => mean_hsv(i),
+        None => (h1, s1, 0.50),
+    };
+
+    // 只夹物理区间：允许很黑/很白（v 低到 0.08、高到 1.0），也允许无彩色（s=0）
+    let sa = s1.clamp(0.0, 1.0);
+    let sb = s2.clamp(0.0, 1.0);
+    let va = v1.clamp(0.08, 1.0);
+    let vb = v2.clamp(0.08, 1.0);
+    // 按亮度排序，并保证两端亮度差 ≥0.25
+    let (lh, ls, lv, dh, ds, dv) = if va >= vb {
+        (h1, sa, va, h2, sb, vb.min(va - 0.25).max(0.05))
+    } else {
+        (h2, sb, vb, h1, sa, va.min(vb - 0.25).max(0.05))
+    };
+    let mk = |h: f32, sat: f32, v: f32| -> (u8, u8, u8) {
+        let cv = |x: f32| ((x.clamp(0.0, 1.0) * 255.0).round() as i32).clamp(0, 255) as u8;
+        (
+            cv(hsv_chan(h, sat, v, 0)),
+            cv(hsv_chan(h, sat, v, 1)),
+            cv(hsv_chan(h, sat, v, 2)),
+        )
+    };
+    Some((mk(dh, ds, dv), mk(lh, ls, lv)))
+}
+fn rgb_to_hsv(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+    let mx = r.max(g).max(b);
+    let mn = r.min(g).min(b);
+    let v = mx;
+    let s = if mx <= 0.0 { 0.0 } else { (mx - mn) / mx };
+    let d = mx - mn;
+    let h = if d <= 0.0 {
+        0.0
+    } else if mx == r {
+        (((g - b) / d).rem_euclid(6.0)) / 6.0
+    } else if mx == g {
+        ((b - r) / d + 2.0) / 6.0
+    } else {
+        ((r - g) / d + 4.0) / 6.0
+    };
+    (h.rem_euclid(1.0), s, v)
+}
+fn hsv_chan(h: f32, s: f32, v: f32, ch: usize) -> f32 {
+    let h6 = h.rem_euclid(1.0) * 6.0;
+    let i = h6.floor() as u32;
+    let f = h6 - i as f32;
+    let p = v * (1.0 - s);
+    let q = v * (1.0 - s * f);
+    let t = v * (1.0 - s * (1.0 - f));
+    let (r, g, b) = match i % 6 {
+        0 => (v, t, p),
+        1 => (q, v, p),
+        2 => (p, v, t),
+        3 => (p, q, v),
+        4 => (t, p, v),
+        _ => (v, p, q),
+    };
+    match ch {
+        0 => r,
+        1 => g,
+        _ => b,
+    }
+}
+fn extract_png(data_url: &str) -> Option<Vec<u8>> {
+    use base64::engine::general_purpose::STANDARD as B64;
+    use base64::Engine;
+    let (_, b64) = data_url.split_once(',')?;
+    let bytes = B64.decode(b64.trim()).ok()?;
+    Some(bytes)
+}
+
 fn render_cover(data_url: String, w: u16, h: u16) -> Option<Vec<ratatui::text::Line<'static>>> {
     use base64::engine::general_purpose::STANDARD as B64;
     use base64::Engine;
@@ -1857,6 +1996,68 @@ fn raster_fluid(
     lines
 }
 
+pub fn raster_solid(buf: &image::RgbaImage, _cols: u32, rows: u32, ox: i64, oy: i64) -> Vec<ratatui::text::Line<'static>> {
+    use ratatui::style::{Color, Style};
+    use ratatui::text::{Line, Span};
+    const CW: u32 = 2;
+    const CH: u32 = 4;
+    /// 判定"格内有内容"的最低亮度（r+g+b）。仅用于判断有无，不影响颜色计算。
+    const DARK_THRESHOLD: u32 = 30;
+    let w_px = buf.width();
+    let h_px = buf.height();
+    let ncols = (w_px / CW) as i64;
+    let nrows = (h_px / CH) as i64;
+    let mut lines = Vec::with_capacity(rows as usize);
+    for y in 0..rows {
+        let ry = y as i64 - oy;
+        if ry < 0 || ry >= nrows {
+            lines.push(Line::from(Vec::<Span>::new()));
+            continue;
+        }
+        let mut spans: Vec<Span> = Vec::with_capacity((ox.max(0) as usize) + ncols as usize);
+        if ox > 0 {
+            spans.push(Span::raw(" ".repeat(ox as usize)));
+        }
+        for cx in 0..ncols {
+            let px0 = (cx + ox) * CW as i64;
+            let py0 = ry * CH as i64;
+            if px0 < 0 || px0 + CW as i64 > w_px as i64 || py0 < 0 || py0 + CH as i64 > h_px as i64 {
+                spans.push(Span::raw(" "));
+                continue;
+            }
+            // ★ 只取格内最亮的单个像素的颜色（不平均），参考原 raster_braille 的设计
+            let mut mr = 0u8;
+            let mut mg = 0u8;
+            let mut mb = 0u8;
+            let mut max_lum = 0u32;
+            for r4 in 0..CH {
+                for c2 in 0..CW {
+                    let p = buf.get_pixel((px0 + c2 as i64) as u32, (py0 + r4 as i64) as u32);
+                    let lum = p[0] as u32 + p[1] as u32 + p[2] as u32;
+                    if lum > max_lum {
+                        max_lum = lum;
+                        mr = p[0]; mg = p[1]; mb = p[2];
+                    }
+                }
+            }
+            // ★ 全黑格子 → 裸空格，与终端背景融合，不产生竖纹
+            if max_lum < DARK_THRESHOLD {
+                spans.push(Span::raw(" "));
+                continue;
+            }
+            // 有内容 → fg=bg=最亮点颜色，整格实心无间隙
+            spans.push(Span::styled(
+                " ",
+                Style::default()
+                    .fg(Color::Rgb(mr, mg, mb))
+                    .bg(Color::Rgb(mr, mg, mb)),
+            ));
+        }
+        lines.push(Line::from(spans));
+    }
+    lines
+}
+
 struct Particle {
     x: f32,
     y: f32,
@@ -1910,6 +2111,10 @@ struct AudioDyn {
     treble: f32,   // 平滑高频 0..1
     flux: f32,     // 平滑谱通量 0..1
     pulse: f32,    // 节拍脉冲，快起慢落
+    /// 低频起音强度 0..1：只看低频段能量上升沿，快起慢落；鼓/贝斯同步，钢琴旋律不触发。
+    bass_onset: f32,
+    bass_prev: f32,
+    bass_avg: f32,
 }
 
 impl AudioDyn {
@@ -1944,6 +2149,14 @@ impl AudioDyn {
         self.treble += (t - self.treble) * A;
         self.flux += (f - self.flux) * A;
         self.pulse *= 0.85; // 慢落
+        // 低频起音：低频能量上升沿相对慢基线的比例（连续信号，天然与鼓点同步）
+        let rise = (b - self.bass_prev).max(0.0);
+        self.bass_prev = b;
+        self.bass_avg = self.bass_avg * 0.96 + b * 0.04;
+        let onset = if self.bass_avg > 0.02 {
+            (rise / (self.bass_avg * 0.9 + 1e-4)).clamp(0.0, 1.0)
+        } else { 0.0 };
+        self.bass_onset = onset.max(self.bass_onset * 0.70); // 快起慢落
     }
 
     fn beat(&mut self, intensity: f32) {
@@ -2126,6 +2339,7 @@ fn draw_ui(
     cover_lines: &[ratatui::text::Line<'static>],
     spectrum_lines: &[ratatui::text::Line<'static>],
     spec_mode: u8,
+    pulse: f32,
 ) {
     use ratatui::{
         style::{Color, Modifier, Style},
@@ -2313,7 +2527,7 @@ fn draw_ui(
         );
     } else if spec_mode == 0 {
         let sw = chunks[7].width as usize;
-        let spec7 = resize_spec(spectrum, sw);
+        let spec7 = spark_beat_boost(&resize_spec(spectrum, sw), pulse);
         f.render_widget(
             Sparkline::default()
                 .data(&spec7)
@@ -2343,6 +2557,13 @@ fn resize_spec(data: &[u64], w: usize) -> Vec<u64> {
         out[i] = data[src.min(data.len() - 1)];
     }
     out
+}
+
+/// 经典 Sparkline 的节拍抬升：鼓点(pulse)到来时按 (1+0.6*pulse) 放大柱高、上限100。
+/// 只改 Sparkline 数据、不碰样式，保持 0 绿重构前观感。
+fn spark_beat_boost(data: &[u64], pulse: f32) -> Vec<u64> {
+    let k = 1.0 + 0.6 * pulse.clamp(0.0, 1.0);
+    data.iter().map(|&v| ((v as f32) * k).min(100.0) as u64).collect()
 }
 
 /// 取默认 sink 的 monitor 源名（如 `alsa_output.xxx.monitor`）。
@@ -3684,8 +3905,18 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
     let (done_tx, mut done_rx) = mpsc::unbounded_channel::<()>();
     // g / n / b 等主动命令的失败原因回传 UI，避免"按了没反应"却无从得知。
     let (err_tx, mut err_rx) = mpsc::unbounded_channel::<String>();
+    // 封面渐变两端色：worker 加载封面时写入，供摩尔纹等频谱配色自适应。
+    let cover_dominant = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let cover_dominant2 = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let cover_dominant_has = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let cover_dom_w = cover_dominant.clone();
+    let cover_dom2_w = cover_dominant2.clone();
+    let cover_has_w = cover_dominant_has.clone();
     let worker = {
         let wb = b;
+        let cover_dominant = cover_dom_w;
+        let cover_dominant2 = cover_dom2_w;
+        let cover_dominant_has = cover_has_w;
         // fx 来自 wait_ready 的单一会话，直接 move 进来复用，不再二次 connect。
         tokio::spawn(async move {
             while let Some(cmd) = cmd_rx.recv().await {
@@ -3807,6 +4038,15 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
                         match res {
                             Ok(v) => {
                                 if let Some(du) = v["dataUrl"].as_str().map(|s| s.to_string()) {
+                                    // 取封面渐变色（与封面渲染解耦，单独解析一次）
+                                    let grad = extract_png(&du)
+                                        .and_then(|b| image::load_from_memory(&b).ok())
+                                        .and_then(|img| cover_gradient(&img));
+                                    let pack = |c: (u8, u8, u8)| -> u32 { (c.0 as u32) << 16 | (c.1 as u32) << 8 | c.2 as u32 };
+                                    let (c1, c2) = match grad { Some((a, b)) => (Some(a), Some(b)), None => (None, None) };
+                                    cover_dominant.store(c1.map(pack).unwrap_or(0), std::sync::atomic::Ordering::Relaxed);
+                                    cover_dominant2.store(c2.map(pack).unwrap_or(0), std::sync::atomic::Ordering::Relaxed);
+                                    cover_dominant_has.store(c1.is_some() as u32, std::sync::atomic::Ordering::Relaxed);
                                     if let Some(lines) = render_cover(du, w, h) {
                                         let _ = cover_tx.send(lines);
                                     }
@@ -3890,9 +4130,16 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
                 do_burst,
                 fade: radial_fade,
                 neon: SPEC_NEON,
+                cover_grad: {
+                    let has = cover_dominant_has.load(std::sync::atomic::Ordering::Relaxed) != 0;
+                    if has {
+                        let up = |c: u32| -> (u8, u8, u8) { ((c >> 16) as u8, ((c >> 8) & 0xff) as u8, (c & 0xff) as u8) };
+                        Some((up(cover_dominant.load(std::sync::atomic::Ordering::Relaxed)), up(cover_dominant2.load(std::sync::atomic::Ordering::Relaxed))))
+                    } else { None }
+                },
             };
             let spectrum_lines = renderer.render(&spectrum_data, spec_iw, spec_ih, &audio_dyn, &ctx);
-            draw_ui(f, &status, busy, fb_phase, &message, backend_name, &spectrum_data, &cover_to_draw, &spectrum_lines, spec_mode)
+            draw_ui(f, &status, busy, fb_phase, &message, backend_name, &spectrum_data, &cover_to_draw, &spectrum_lines, spec_mode, audio_dyn.pulse)
         })?;
         // radial_phase / radial_beat_wave are advanced above (audio-driven).
         // sticky 提示期间不清空，否则正常清空。
@@ -4041,7 +4288,7 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
                 KeyCode::Esc => { kill_browser(); break; },
                 KeyCode::Char('q') => { kill_browser(); break; },
                 KeyCode::Char('c') => {
-                    spec_mode = (spec_mode + 1) % 4;
+                    spec_mode = (spec_mode + 1) % 5;
                     renderer = spectrum::make_plugin(spec_mode);
                     blink_until = Some(Instant::now() + Duration::from_millis(600));
                 }
@@ -4068,9 +4315,16 @@ async fn run_ui(b: Backend, bidi: Option<BiDi>) -> Result<()> {
                                 do_burst,
                                 fade: radial_fade,
                                 neon: SPEC_NEON,
+                                cover_grad: {
+                                    let has = cover_dominant_has.load(std::sync::atomic::Ordering::Relaxed) != 0;
+                                    if has {
+                                        let up = |c: u32| -> (u8, u8, u8) { ((c >> 16) as u8, ((c >> 8) & 0xff) as u8, (c & 0xff) as u8) };
+                                        Some((up(cover_dominant.load(std::sync::atomic::Ordering::Relaxed)), up(cover_dominant2.load(std::sync::atomic::Ordering::Relaxed))))
+                                    } else { None }
+                                },
                             };
                             let spectrum_lines = renderer.render(&spectrum_data, spec_iw, spec_ih, &audio_dyn, &ctx);
-                            draw_ui(f, &status, busy, None, "", backend_name, &spectrum_data, &cover_lines, &spectrum_lines, spec_mode)
+                            draw_ui(f, &status, busy, None, "", backend_name, &spectrum_data, &cover_lines, &spectrum_lines, spec_mode, audio_dyn.pulse)
                         })?;
                         let _ = cmd_tx.send(UiCmd::Boot);
                     } else if qlen > 0 || already_playing {
@@ -4533,7 +4787,7 @@ mod quadrant_tests {
         });
         let cover = vec![Line::from("COVERMARK")];
         let spec = vec![Line::from("SPECTRUMMARK")];
-        term.draw(|f| draw_ui(f, &status, false, None, "", "test", &[], &cover, &spec, 1)).unwrap();
+        term.draw(|f| draw_ui(f, &status, false, None, "", "test", &[], &cover, &spec, 1, 0.0)).unwrap();
 
         let area = term.backend().buffer().area;
         let line_str = |y: u16| -> String {

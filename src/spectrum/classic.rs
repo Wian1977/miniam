@@ -1,5 +1,5 @@
-//! 经典绿频谱插件：绿色 braille 栅格底部频谱（替代原 draw_ui 内的 Sparkline）
-use crate::{AudioDyn, raster_braille};
+//! 经典频谱插件：绿色实心色块底部频谱（无点阵纹理）
+use crate::{AudioDyn, raster_solid};
 use image::RgbaImage;
 use image::Rgba;
 use ratatui::text::Line;
@@ -10,7 +10,7 @@ impl Default for ClassicPlugin {
     fn default() -> Self { ClassicPlugin }
 }
 impl SpectrumPlugin for ClassicPlugin {
-    fn name(&self) -> &'static str { "经典绿" }
+    fn name(&self) -> &'static str { "经典" }
     fn render(&mut self, spectrum: &[u64], cols: u32, rows: u32, dyn_state: &AudioDyn, _ctx: &SpectrumCtx) -> Vec<Line<'static>> {
         let bw = (cols.max(1) * 2) as u32;
         let bh = (rows.max(1) * 4) as u32;
@@ -36,6 +36,6 @@ impl SpectrumPlugin for ClassicPlugin {
                 }
             }
         }
-        raster_braille(&buf, cols, rows, 0, 0)
+        raster_solid(&buf, cols, rows, 0, 0)
     }
 }

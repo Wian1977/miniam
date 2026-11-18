@@ -1,7 +1,7 @@
 //! 频谱插件框架（第一阶段：静态注册；第二阶段将支持运行时目录热加载）
 //!
-//! 四种内置频谱（spec_mode 0/1/2/3）：
-//!   0 经典绿（classic） / 1 霓虹粒子（neon） / 2 放射（radial） / 3 流体（fluid）
+//! 五种内置频谱（spec_mode 0/1/2/3/4）：
+//!   0 经典（classic） / 1 霓虹粒子（neon） / 2 放射（radial） / 3 流体（fluid） / 4 彩虹摩尔纹（moire）
 //!
 //! 每个插件是一个独立文件，实现 [`SpectrumPlugin`] trait。主循环持有一个
 //! `Box<dyn SpectrumPlugin>`，按 spec_mode 通过 [`make_plugin`] 创建/切换。
@@ -20,6 +20,9 @@ pub struct SpectrumCtx {
     pub do_burst: Option<f32>,
     pub fade: f32,
     pub neon: (u8, u8, u8),
+    /// 当前封面的**两个渐变端点色**（起点偏暗饱和、终点偏亮），供频谱配色随封面自适应。
+    /// None = 无封面，走默认配色。两个色相相距 ≥40°，保证是渐变而非单色。
+    pub cover_grad: Option<((u8, u8, u8), (u8, u8, u8))>,
 }
 
 /// 频谱插件接口：输入频谱 + 派生上下文，输出 braille 栅格的行。
@@ -35,12 +38,14 @@ pub trait SpectrumPlugin: Send {
         dyn_state: &AudioDyn,
         ctx: &SpectrumCtx,
     ) -> Vec<Line<'static>>;
+
 }
 
 pub mod classic;
 pub mod neon;
 pub mod radial;
 pub mod fluid;
+pub mod moire;
 
 /// 第一阶段：按 spec_mode 静态创建对应插件。
 /// 第二阶段将改为从目录加载的注册表按名/索引取。
@@ -50,6 +55,7 @@ pub fn make_plugin(mode: u8) -> Box<dyn SpectrumPlugin> {
         1 => Box::new(neon::NeonPlugin::default()),
         2 => Box::new(radial::RadialPlugin::default()),
         3 => Box::new(fluid::FluidPlugin::default()),
+        4 => Box::new(moire::MoirePlugin::default()),
         _ => Box::new(neon::NeonPlugin::default()),
     }
 }

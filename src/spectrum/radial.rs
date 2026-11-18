@@ -62,11 +62,11 @@ pub(crate) fn render_radial_internal(
     let cy = bh as f32 / 2.0;
     let n = spectrum.len().max(1) as u32;
     // breathe: slow sine + audio pulse; core pulses with the beat.
-    let breathe = 1.0 + 0.08 * (phase * 0.18).sin() + dyn_state.pulse * 0.5;
+    let breathe = 1.0 + 0.08 * (phase * 0.18).sin() + dyn_state.pulse * 0.85;
     // 半径取长边的一半且不留 2% 余量，让圆盘正好铺满水平方向；
     // 上下的溢出仍由边框裁掉（不压成椭圆）。
     let radius = (bw as f32).max(bh as f32) / 2.0;
-    let core_r = ((bh as f32) * (0.10 + dyn_state.bass * 0.12 + dyn_state.pulse * 0.12) * breathe).min(bh as f32 * 0.18);
+    let core_r = ((bh as f32) * (0.10 + dyn_state.bass * 0.12 + dyn_state.pulse * 0.20) * breathe).min(bh as f32 * 0.18);
     // 背景：用巨大半径的辉光把整片频谱区均匀铺一层冷蓝底，保证“填满区域”。
     // Base wavefronts: phase is advanced in the main loop at an audio-driven rate,
     // so busier music expands them faster instead of a fixed-speed spin.
@@ -96,7 +96,7 @@ pub(crate) fn render_radial_internal(
     for &wr in &waves {
         let t = (wr - core_r) / (radius - core_r).max(1.0);   // 0 = center, 1 = edge
         let env = (1.0 - t).powf(1.1);                           // bright at birth, fades outward
-        let a = ((0.5 + dyn_state.energy * 0.3 + dyn_state.pulse * 0.5) * env
+        let a = ((0.5 + dyn_state.energy * 0.3 + dyn_state.pulse * 0.75) * env
             * (0.75 + 0.25 * dyn_state.passage_gain())).min(0.95);
         let c = brighten(radial_color(t), 0.05);
         draw_ring(&mut buf, cx, cy, wr, 3.0 + dyn_state.bass * 3.0, c, a);
@@ -190,7 +190,7 @@ pub(crate) fn render_radial_internal(
     if let Some(bt) = beat_wave {
         let flash = (1.0 - (bt / 0.2).min(1.0)).max(0.0);
         if flash > 0.01 {
-            let add = (flash * 50.0) as u32;
+            let add = (flash * 90.0) as u32;
             for p in buf.pixels_mut() {
                 p[0] = (p[0] as u32 + add).min(255) as u8;
                 p[1] = (p[1] as u32 + add).min(255) as u8;
@@ -198,7 +198,7 @@ pub(crate) fn render_radial_internal(
             }
         }
     }
-    raster_braille(&buf, cols, rows, 0, 0)
+    raster_solid(&buf, cols, rows, 0, 0)
 }
 
 pub struct RadialPlugin {

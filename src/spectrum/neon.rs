@@ -27,7 +27,8 @@ pub(crate) fn render_neon(
     let busyness = dyn_state.busyness();
     let heaviness = dyn_state.heaviness();
     // 发射率随能量：安静时几乎无粒子，激烈时最多 ~每 bin 3 个（少而精）。
-    let spawn_scale = (0.4 + dyn_state.energy * 2.6).clamp(0.0, 3.0);
+    // ★ 节拍：pulse 到来时多喷粒子，粒子爆发与鼓点同步
+    let spawn_scale = (0.4 + dyn_state.energy * 2.6 + dyn_state.pulse * 1.6).clamp(0.0, 4.0);
     if peaks.len() != n as usize {
         *peaks = vec![0.0f32; n as usize];
     }
@@ -44,7 +45,9 @@ pub(crate) fn render_neon(
         let dx = (cx - bin_w as f32 / 2.0) as i64;
         let dy = (bh - bar_h) as i64;
         let c_bright = brighten(c, 0.08); // 整体提亮，霓虹底色更醒目
-        draw_core(&mut buf, dx, dy, bin_w.max(1) as i64, bar_h as i64, c_bright, 0.55 + 0.40 * e);
+        // ★ 节拍：pulse 快起慢落，鼓点时整条柱显著提亮，节奏更明显
+        let beat_lift = (dyn_state.pulse * 0.45).min(0.45);
+        draw_core(&mut buf, dx, dy, bin_w.max(1) as i64, bar_h as i64, c_bright, (0.55 + 0.40 * e + beat_lift).min(1.0));
         // 柱顶亮芯：additive 叠加近白高光，形成霓虹发光边
         let cap = (bin_w.max(2) as i64).min(3);
         draw_core(&mut buf, dx, (bh - bar_h) as i64, cap, 1, brighten(c, 0.4), 1.0);
@@ -107,7 +110,7 @@ pub(crate) fn render_neon(
         next.push(p);
     }
     *particles = next;
-    raster_braille(&buf, cols, rows, 0, 0)
+    raster_solid(&buf, cols, rows, 0, 0)
 }
 
 pub struct NeonPlugin {
